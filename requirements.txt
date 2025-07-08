@@ -1,0 +1,18 @@
+# Core dependencies for the autonomous agent system
+pytest>=7.0.0
+pytest-asyncio>=0.21.0
+pytest-cov>=4.0.0
+
+# Configuration management
+PyYAML>=6.0.0
+
+# Async support
+asyncio
+
+# Optional system monitoring
+psutil>=5.9.0
+
+# Development dependencies
+black>=23.0.0
+flake8>=6.0.0
+mypy>=1.0.0

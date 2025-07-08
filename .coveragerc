@@ -1,0 +1,162 @@
+[run]
+# Source directories to measure
+source = src
+
+# Files to include in coverage
+include = 
+    src/*
+
+# Files to exclude from coverage
+omit =
+    */tests/*
+    */test_*
+    */__pycache__/*
+    */migrations/*
+    */venv/*
+    */env/*
+    */site-packages/*
+    */build/*
+    */dist/*
+    */conftest.py
+    */setup.py
+    */manage.py
+    */.tox/*
+    */node_modules/*
+    */static/*
+    */media/*
+    */fixtures/*
+    */mocks/*
+    */stubs/*
+
+# Branch coverage
+branch = true
+
+# Parallel mode for multiprocessing
+parallel = false
+
+# Context for coverage
+context = ${CONTEXT}
+
+# Data file location
+data_file = .coverage
+
+# Concurrency
+concurrency = 
+    thread
+    multiprocessing
+
+[report]
+# Minimum coverage percentage to pass
+fail_under = 90
+
+# Show missing lines
+show_missing = true
+
+# Skip covered files
+skip_covered = false
+
+# Skip empty files
+skip_empty = true
+
+# Precision for percentages
+precision = 2
+
+# Sort by coverage percentage
+sort = -Cover
+
+# Exclude lines from coverage
+exclude_lines =
+    # Have to re-enable the standard pragma
+    pragma: no cover
+    
+    # Don't complain about missing debug-only code:
+    def __repr__
+    if self\.debug
+    
+    # Don't complain if tests don't hit defensive assertion code:
+    raise AssertionError
+    raise NotImplementedError
+    
+    # Don't complain if non-runnable code isn't run:
+    if 0:
+    if __name__ == .__main__.:
+    if TYPE_CHECKING:
+    
+    # Don't complain about abstract methods
+    @(abc\.)?abstractmethod
+    
+    # Don't complain about protocol methods
+    @(typing\.)?overload
+    
+    # Don't complain about platform specific code
+    if sys\.platform
+    if platform\.system
+    
+    # Don't complain about version specific code
+    if sys\.version_info
+    
+    # Don't complain about import fallbacks
+    except ImportError
+    except ModuleNotFoundError
+    
+    # Don't complain about logging
+    logger\.debug
+    logger\.info
+    logging\.debug
+    logging\.info
+
+# Partial branches to exclude
+partial_branches =
+    # Standard pragma
+    pragma: no branch
+    
+    # Don't complain about version checks
+    if sys\.version_info
+    
+    # Don't complain about platform checks
+    if sys\.platform
+    if platform\.system
+
+[html]
+# HTML report directory
+directory = htmlcov
+
+# Title for HTML report
+title = Autonomous Agent Test Coverage Report
+
+# Show contexts in HTML report
+show_contexts = true
+
+# Skip empty files in HTML report
+skip_empty = true
+
+# Skip covered files in HTML report
+skip_covered = false
+
+[xml]
+# XML report file
+output = coverage.xml
+
+[json]
+# JSON report file
+output = coverage.json
+
+# Pretty print JSON
+pretty_print = true
+
+# Show contexts in JSON report
+show_contexts = true
+
+[lcov]
+# LCOV report file
+output = coverage.lcov
+
+[paths]
+# Path mapping for coverage combining
+source =
+    src/
+    /opt/app/src/
+    /app/src/
+    /home/runner/work/*/src/
+    /Users/*/autonomous-agent/src/
+    /workspace/src/

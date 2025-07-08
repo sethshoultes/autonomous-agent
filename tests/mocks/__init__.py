@@ -1,0 +1,1 @@
+"""Mock configurations for external services."""
