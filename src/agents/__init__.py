@@ -12,6 +12,18 @@ from .exceptions import (
     AgentStateError,
 )
 from .manager import AgentConfig, AgentManager, AgentRegistry
+from .research import (
+    ResearchAgent,
+    ResearchTask,
+    ResearchResult,
+    ContentItem,
+    ResearchReport,
+    ResearchQuery,
+    ResearchException,
+    RateLimitError,
+    ContentExtractionError,
+    CacheError,
+)
 
 __all__ = [
     "AgentCommunicationError",
@@ -30,4 +42,15 @@ __all__ = [
     "AgentStateError",
     # Base classes
     "BaseAgent",
+    # Research Agent
+    "ResearchAgent",
+    "ResearchTask",
+    "ResearchResult",
+    "ContentItem",
+    "ResearchReport",
+    "ResearchQuery",
+    "ResearchException",
+    "RateLimitError",
+    "ContentExtractionError",
+    "CacheError",
 ]

@@ -1,0 +1,98 @@
+# Research Agent Configuration
+# Configuration file for the Research Agent component
+
+research_agent:
+  # Basic agent configuration
+  agent_id: "research_agent_001"
+  enabled: true
+  priority: 1
+  
+  # Web scraping configuration
+  scraping:
+    max_concurrent_requests: 5
+    request_timeout: 30
+    rate_limit_delay: 1.0
+    max_content_length: 1048576  # 1MB in bytes
+    user_agent: "AutonomousAgent/1.0 Research Bot"
+    respect_robots_txt: true
+    
+  # Content processing configuration
+  content:
+    relevance_threshold: 0.6
+    deduplication_threshold: 0.8
+    content_extraction_timeout: 10
+    max_keywords: 10
+    
+  # Caching configuration
+  cache:
+    cache_type: "memory"  # memory, redis, file
+    ttl: 3600  # 1 hour
+    max_size: 1000
+    
+  # RSS feed monitoring
+  feeds:
+    check_interval: 300  # 5 minutes
+    max_items: 100
+    concurrent_feeds: 10
+    default_feeds:
+      - "https://feeds.feedburner.com/oreilly/radar"
+      - "https://techcrunch.com/feed/"
+      - "https://feeds.arstechnica.com/arstechnica/index"
+      - "https://rss.cnn.com/rss/edition.rss"
+      
+  # Research topics and preferences
+  research:
+    topics:
+      - "artificial intelligence"
+      - "machine learning"
+      - "automation"
+      - "technology trends"
+      - "data science"
+    
+    # Content filtering
+    blocked_domains:
+      - "spam.com"
+      - "malware.com"
+      
+    allowed_file_types:
+      - "text/html"
+      - "application/rss+xml"
+      - "application/xml"
+      - "application/json"
+      
+    # Quality control
+    min_content_length: 100
+    max_title_length: 200
+    
+  # Security and compliance
+  security:
+    robots_txt_cache_ttl: 3600
+    crawl_delay_multiplier: 1.5
+    max_redirects: 5
+    
+  # Performance tuning
+  performance:
+    batch_size: 10
+    worker_threads: 4
+    memory_limit: 512  # MB
+    
+  # Reporting configuration
+  reporting:
+    auto_generate_reports: true
+    report_format: "json"  # json, yaml, html
+    include_insights: true
+    max_report_size: 100  # number of items
+    
+  # Integration settings
+  integration:
+    enable_webhooks: false
+    webhook_url: ""
+    notification_threshold: 50  # minimum items for notification
+    
+# Agent Manager integration
+agent_manager:
+  research_agent:
+    startup_order: 2
+    health_check_interval: 60
+    restart_on_failure: true
+    max_restart_attempts: 3

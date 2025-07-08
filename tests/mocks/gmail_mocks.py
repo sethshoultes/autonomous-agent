@@ -38,6 +38,18 @@ class MockGmailCredentials:
     def to_json(self) -> str:
         """Return credentials as JSON string."""
         return json.dumps(self.credentials, indent=2)
+    
+    def is_expired(self) -> bool:
+        """Check if credentials are expired."""
+        return False
+    
+    def refresh(self) -> None:
+        """Refresh credentials."""
+        pass
+    
+    def apply(self, headers: Dict[str, str]) -> None:
+        """Apply credentials to headers."""
+        headers["Authorization"] = "Bearer mock_access_token"
 
 
 class MockGmailMessage:
@@ -336,3 +348,280 @@ def generate_email_with_attachments(attachment_count: int = 2) -> MockGmailMessa
         labels=["INBOX", "UNREAD"],
         attachments=attachments,
     )
+
+
+class MockGmailAPIError(Exception):
+    """Mock Gmail API error for testing error scenarios."""
+    
+    def __init__(self, message: str, status_code: int = 400, reason: str = "Bad Request"):
+        super().__init__(message)
+        self.status_code = status_code
+        self.reason = reason
+        self.content = message.encode()
+
+
+class MockGmailQuotaError(MockGmailAPIError):
+    """Mock Gmail API quota exceeded error."""
+    
+    def __init__(self):
+        super().__init__(
+            "Quota exceeded for quota metric 'Queries' and limit 'Queries per day' of service 'gmail.googleapis.com'",
+            status_code=429,
+            reason="Too Many Requests"
+        )
+
+
+class MockGmailAuthError(MockGmailAPIError):
+    """Mock Gmail API authentication error."""
+    
+    def __init__(self):
+        super().__init__(
+            "Request had invalid authentication credentials",
+            status_code=401,
+            reason="Unauthorized"
+        )
+
+
+class MockGmailRateLimiter:
+    """Mock rate limiter for Gmail API requests."""
+    
+    def __init__(self, requests_per_minute: int = 250):
+        self.requests_per_minute = requests_per_minute
+        self.request_times = []
+        self.current_minute = 0
+    
+    def can_make_request(self) -> bool:
+        """Check if a request can be made without exceeding rate limits."""
+        import time
+        current_time = time.time()
+        current_minute = int(current_time // 60)
+        
+        # Clean old requests from different minute
+        if current_minute != self.current_minute:
+            self.request_times = []
+            self.current_minute = current_minute
+        
+        # Check if we can make another request
+        return len(self.request_times) < self.requests_per_minute
+    
+    def record_request(self) -> None:
+        """Record that a request was made."""
+        import time
+        self.request_times.append(time.time())
+    
+    def get_wait_time(self) -> float:
+        """Get time to wait before next request."""
+        if self.can_make_request():
+            return 0.0
+        
+        # Wait until next minute
+        import time
+        current_time = time.time()
+        next_minute = (int(current_time // 60) + 1) * 60
+        return next_minute - current_time
+
+
+class MockGmailHistoryTracker:
+    """Mock Gmail history tracking for testing."""
+    
+    def __init__(self):
+        self.history_id = 12345
+        self.history_events = []
+    
+    def add_event(self, event_type: str, message_id: str, labels_added: List[str] = None, labels_removed: List[str] = None):
+        """Add a history event."""
+        self.history_id += 1
+        event = {
+            "id": str(self.history_id),
+            "messages": [{
+                "id": message_id,
+                "labelsAdded": labels_added or [],
+                "labelsRemoved": labels_removed or [],
+            }]
+        }
+        self.history_events.append(event)
+    
+    def get_history(self, start_history_id: int) -> List[Dict[str, Any]]:
+        """Get history events since a specific history ID."""
+        return [event for event in self.history_events if int(event["id"]) > start_history_id]
+
+
+class MockGmailFilter:
+    """Mock Gmail filter for testing filtering functionality."""
+    
+    def __init__(self, filter_id: str, criteria: Dict[str, Any], action: Dict[str, Any]):
+        self.filter_id = filter_id
+        self.criteria = criteria
+        self.action = action
+    
+    def matches(self, email: Dict[str, Any]) -> bool:
+        """Check if email matches filter criteria."""
+        if "from" in self.criteria:
+            from_header = next((h["value"] for h in email.get("payload", {}).get("headers", []) if h["name"] == "From"), "")
+            if self.criteria["from"] not in from_header:
+                return False
+        
+        if "subject" in self.criteria:
+            subject_header = next((h["value"] for h in email.get("payload", {}).get("headers", []) if h["name"] == "Subject"), "")
+            if self.criteria["subject"] not in subject_header:
+                return False
+        
+        if "hasAttachment" in self.criteria:
+            has_attachments = bool(email.get("payload", {}).get("parts", []))
+            if self.criteria["hasAttachment"] != has_attachments:
+                return False
+        
+        return True
+    
+    def apply_action(self, email: Dict[str, Any]) -> Dict[str, Any]:
+        """Apply filter action to email."""
+        if "addLabelIds" in self.action:
+            email["labelIds"] = list(set(email.get("labelIds", []) + self.action["addLabelIds"]))
+        
+        if "removeLabelIds" in self.action:
+            for label in self.action["removeLabelIds"]:
+                if label in email.get("labelIds", []):
+                    email["labelIds"].remove(label)
+        
+        if "forward" in self.action:
+            # In a real implementation, this would forward the email
+            pass
+        
+        return email
+
+
+class MockGmailThread:
+    """Mock Gmail thread for testing threading functionality."""
+    
+    def __init__(self, thread_id: str, messages: List[MockGmailMessage] = None):
+        self.thread_id = thread_id
+        self.messages = messages or []
+        self.labels = []
+        self.snippet = ""
+        self.history_id = "12345"
+    
+    def add_message(self, message: MockGmailMessage) -> None:
+        """Add a message to the thread."""
+        message.thread_id = self.thread_id
+        self.messages.append(message)
+        self._update_thread_properties()
+    
+    def _update_thread_properties(self) -> None:
+        """Update thread properties based on messages."""
+        if self.messages:
+            # Use labels from the most recent message
+            self.labels = self.messages[-1].labels
+            # Create snippet from the first message
+            self.snippet = self.messages[0].body[:100] + "..." if len(self.messages[0].body) > 100 else self.messages[0].body
+    
+    def to_gmail_format(self) -> Dict[str, Any]:
+        """Convert to Gmail API format."""
+        return {
+            "id": self.thread_id,
+            "snippet": self.snippet,
+            "historyId": self.history_id,
+            "messages": [msg.to_gmail_format() for msg in self.messages]
+        }
+
+
+def generate_work_emails(count: int = 5) -> List[MockGmailMessage]:
+    """Generate work-related emails for testing."""
+    work_subjects = [
+        "Team meeting tomorrow at 2 PM",
+        "Project deadline approaching",
+        "Code review request",
+        "Quarterly report due",
+        "Client presentation prep"
+    ]
+    
+    work_bodies = [
+        "Please join the team meeting tomorrow at 2 PM in the conference room.",
+        "Just a reminder that the project deadline is approaching. Please ensure all tasks are completed.",
+        "I've submitted a pull request for the new feature. Could you please review it?",
+        "The quarterly report is due next week. Please prepare your section.",
+        "We need to prepare for the client presentation next Friday. Let's schedule a prep meeting."
+    ]
+    
+    emails = []
+    for i in range(min(count, len(work_subjects))):
+        email = MockGmailMessage(
+            message_id=f"work_email_{i:03d}",
+            thread_id=f"work_thread_{i:03d}",
+            from_email=f"colleague{i}@company.com",
+            to_email="user@company.com",
+            subject=work_subjects[i],
+            body=work_bodies[i],
+            labels=["INBOX", "CATEGORY_FORUMS"] if i % 2 == 0 else ["INBOX"],
+        )
+        emails.append(email)
+    
+    return emails
+
+
+def generate_newsletter_emails(count: int = 3) -> List[MockGmailMessage]:
+    """Generate newsletter emails for testing."""
+    emails = []
+    for i in range(count):
+        email = MockGmailMessage(
+            message_id=f"newsletter_{i:03d}",
+            thread_id=f"newsletter_thread_{i:03d}",
+            from_email=f"newsletter{i}@company.com",
+            to_email="subscriber@example.com",
+            subject=f"Weekly Newsletter #{i+1}",
+            body=f"This week's newsletter content... Unsubscribe link at the bottom.",
+            labels=["INBOX", "CATEGORY_PROMOTIONS"],
+        )
+        emails.append(email)
+    
+    return emails
+
+
+def generate_important_emails(count: int = 3) -> List[MockGmailMessage]:
+    """Generate important emails for testing."""
+    important_keywords = ["URGENT", "ASAP", "PRIORITY", "DEADLINE", "CRITICAL"]
+    emails = []
+    
+    for i in range(count):
+        keyword = important_keywords[i % len(important_keywords)]
+        email = MockGmailMessage(
+            message_id=f"important_email_{i:03d}",
+            thread_id=f"important_thread_{i:03d}",
+            from_email=f"important{i}@company.com",
+            to_email="user@company.com",
+            subject=f"{keyword}: Important matter {i+1}",
+            body=f"This is an {keyword.lower()} message that requires immediate attention.",
+            labels=["INBOX", "IMPORTANT"],
+        )
+        emails.append(email)
+    
+    return emails
+
+
+def generate_threaded_conversation(thread_id: str, message_count: int = 5) -> MockGmailThread:
+    """Generate a threaded email conversation for testing."""
+    thread = MockGmailThread(thread_id)
+    
+    # First message
+    initial_message = MockGmailMessage(
+        message_id=f"{thread_id}_msg_001",
+        thread_id=thread_id,
+        from_email="alice@company.com",
+        to_email="bob@company.com",
+        subject="Project discussion",
+        body="Let's discuss the project requirements.",
+    )
+    thread.add_message(initial_message)
+    
+    # Reply messages
+    for i in range(1, message_count):
+        reply = MockGmailMessage(
+            message_id=f"{thread_id}_msg_{i+1:03d}",
+            thread_id=thread_id,
+            from_email="bob@company.com" if i % 2 else "alice@company.com",
+            to_email="alice@company.com" if i % 2 else "bob@company.com",
+            subject="Re: Project discussion",
+            body=f"Reply #{i}: I agree with your points about the project.",
+        )
+        thread.add_message(reply)
+    
+    return thread

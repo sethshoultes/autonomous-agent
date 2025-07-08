@@ -1,0 +1,265 @@
+# Gmail Agent Configuration Example
+# 
+# This file provides a comprehensive example configuration for the Gmail Agent
+# within the autonomous agent system. Customize the values according to your
+# specific requirements and environment.
+
+# Agent Manager Configuration
+agent_manager:
+  max_agents: 10
+  heartbeat_interval: 30.0
+  communication_timeout: 60.0
+  retry_attempts: 3
+
+# Logging Configuration
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  handlers:
+    console:
+      class: "logging.StreamHandler"
+      level: "INFO"
+    file:
+      class: "logging.FileHandler"
+      level: "DEBUG"
+      filename: "logs/gmail_agent.log"
+
+# Communication Configuration
+communication:
+  message_broker:
+    queue_size: 1000
+    timeout: 30.0
+
+# Gmail Agent Configuration
+gmail:
+  # Gmail API Authentication
+  credentials_path: "/path/to/your/gmail-credentials.json"
+  scopes:
+    - "https://www.googleapis.com/auth/gmail.readonly"
+    - "https://www.googleapis.com/auth/gmail.send"
+    - "https://www.googleapis.com/auth/gmail.modify"
+  user_email: "your-email@gmail.com"  # or "me" for authenticated user
+  
+  # Performance Settings
+  batch_size: 100
+  rate_limit_per_minute: 250  # Gmail API allows 250 requests/minute
+  max_retries: 3
+  retry_delay: 1.0
+  
+  # Email Classification Configuration
+  classification:
+    enabled: true
+    spam_threshold: 0.8      # Confidence threshold for spam classification
+    importance_threshold: 0.7 # Confidence threshold for importance classification
+    
+    # Available categories for classification
+    categories:
+      - "important"
+      - "spam"
+      - "personal"
+      - "work"
+      - "archive"
+    
+    # Keywords for each category (used for ML-based classification)
+    keywords:
+      important:
+        - "urgent"
+        - "asap"
+        - "deadline"
+        - "priority"
+        - "critical"
+        - "emergency"
+        - "action required"
+        - "time sensitive"
+      
+      spam:
+        - "prize"
+        - "winner"
+        - "lottery"
+        - "click here"
+        - "free"
+        - "guarantee"
+        - "limited time"
+        - "act now"
+        - "congratulations"
+        - "you've won"
+      
+      work:
+        - "meeting"
+        - "project"
+        - "deadline"
+        - "team"
+        - "conference"
+        - "call"
+        - "presentation"
+        - "report"
+        - "client"
+        - "proposal"
+      
+      personal:
+        - "family"
+        - "friend"
+        - "personal"
+        - "birthday"
+        - "vacation"
+        - "dinner"
+        - "weekend"
+        - "holiday"
+  
+  # Automated Response Configuration
+  auto_response:
+    enabled: true
+    response_delay: 300        # Delay in seconds before sending auto-response
+    max_responses_per_day: 50  # Maximum auto-responses per day
+    
+    # Response templates for different scenarios
+    templates:
+      out_of_office: |
+        Thank you for your email. I am currently out of office and will respond 
+        to your message when I return. If this is urgent, please contact 
+        [emergency contact] at [emergency email/phone].
+        
+        Best regards,
+        [Your Name]
+      
+      meeting_request: |
+        Thank you for the meeting request. I have received your message and will 
+        review my calendar to find a suitable time. I will get back to you within 
+        24 hours with my availability.
+        
+        Best regards,
+        [Your Name]
+      
+      general_inquiry: |
+        Thank you for your email. I have received your message and will respond 
+        as soon as possible. Please allow 24-48 hours for a detailed response.
+        
+        Best regards,
+        [Your Name]
+    
+    # Trigger patterns for different response types
+    trigger_patterns:
+      out_of_office:
+        - "vacation"
+        - "out of office"
+        - "unavailable"
+        - "away"
+      
+      meeting_request:
+        - "meeting"
+        - "call"
+        - "appointment"
+        - "schedule"
+        - "calendar"
+        - "conference"
+      
+      general_inquiry:
+        - "question"
+        - "inquiry"
+        - "help"
+        - "support"
+        - "information"
+        - "clarification"
+  
+  # Email Archiving and Organization Configuration
+  archiving:
+    enabled: true
+    archive_after_days: 30  # Archive emails older than 30 days
+    auto_label: true        # Automatically apply labels based on rules
+    
+    # Label rules for automatic categorization
+    label_rules:
+      - pattern: "newsletter"
+        label: "Newsletters"
+      
+      - pattern: "noreply"
+        label: "Automated"
+      
+      - pattern: "no-reply"
+        label: "Automated"
+      
+      - pattern: "github"
+        label: "GitHub"
+      
+      - pattern: "linkedin"
+        label: "LinkedIn"
+      
+      - pattern: "facebook"
+        label: "Social Media"
+      
+      - pattern: "twitter"
+        label: "Social Media"
+      
+      - pattern: "invoice"
+        label: "Financial"
+      
+      - pattern: "receipt"
+        label: "Financial"
+    
+    # Smart folders for advanced organization
+    smart_folders:
+      receipts:
+        - "receipt"
+        - "invoice"
+        - "purchase"
+        - "order confirmation"
+        - "payment"
+        - "billing"
+      
+      travel:
+        - "flight"
+        - "hotel"
+        - "booking"
+        - "reservation"
+        - "itinerary"
+        - "check-in"
+      
+      social:
+        - "facebook"
+        - "twitter"
+        - "instagram"
+        - "social"
+        - "linkedin"
+        - "notification"
+      
+      newsletters:
+        - "newsletter"
+        - "digest"
+        - "weekly update"
+        - "monthly report"
+        - "unsubscribe"
+      
+      notifications:
+        - "notification"
+        - "alert"
+        - "reminder"
+        - "system"
+        - "automated"
+
+# Agent Registration Configuration
+agents:
+  gmail_agent_production:
+    agent_type: "gmail"
+    enabled: true
+    priority: 1
+    config:
+      # Agent-specific overrides can be placed here
+      # These will override the global gmail configuration
+      custom_setting: "value"
+
+# Additional Agents (for integration)
+  scheduler_agent:
+    agent_type: "scheduler"
+    enabled: true
+    priority: 2
+    config:
+      schedule_email_checks: true
+      email_check_interval: 300  # 5 minutes
+  
+  notification_agent:
+    agent_type: "notification"
+    enabled: true
+    priority: 3
+    config:
+      email_notifications: true
+      important_email_alerts: true

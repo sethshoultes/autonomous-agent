@@ -1,0 +1,184 @@
+# Sample configuration for Autonomous Agent with Ollama AI integration
+# This configuration enables local AI processing capabilities for enhanced
+# Gmail and Research agent functionality
+
+agent_manager:
+  max_agents: 10
+  heartbeat_interval: 30.0
+  communication_timeout: 10.0
+  retry_attempts: 3
+
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  handlers:
+    console:
+      enabled: true
+    file:
+      enabled: true
+      filename: "autonomous_agent.log"
+
+communication:
+  message_broker:
+    queue_size: 1000
+    timeout: 5.0
+
+# Ollama AI Configuration
+ollama:
+  # Ollama server configuration
+  host: "localhost"
+  port: 11434
+  timeout: 30
+  
+  # Default model for general tasks
+  default_model: "llama3.1:8b"
+  
+  # Context and performance settings
+  max_context_length: 4096
+  stream_enabled: true
+  retry_attempts: 3
+  retry_delay: 1.0
+  
+  # Model generation parameters
+  temperature: 0.7
+  top_p: 0.9
+  top_k: 40
+  
+  # Model preferences for specific tasks
+  models:
+    text_generation: "llama3.1:8b"
+    code_generation: "codellama:7b"
+    analysis: "llama3.1:8b"
+    summarization: "llama3.1:8b"
+
+# Agent configurations
+agents:
+  gmail_agent:
+    agent_type: "GmailAgent"
+    enabled: true
+    priority: 1
+    config:
+      # Gmail API configuration
+      gmail:
+        credentials_file: "gmail_credentials.json"
+        rate_limit_per_minute: 250
+        batch_size: 50
+      
+      # AI-enhanced email processing
+      ai_classification_enabled: true
+      ai_response_generation_enabled: false  # Set to true for auto-responses
+      ai_summarization_enabled: true
+      ai_sentiment_analysis_enabled: true
+      
+      # Email categories for AI classification
+      email_categories:
+        - "urgent"
+        - "work"
+        - "personal"
+        - "newsletter"
+        - "promotion"
+        - "spam"
+        - "social"
+        - "automated"
+      
+      # Email processing rules
+      classification:
+        auto_archive_newsletters: true
+        auto_label_urgent: true
+        confidence_threshold: 0.7
+      
+      # Auto-response settings (when enabled)
+      auto_response:
+        enabled: false
+        max_responses_per_day: 10
+        response_tone: "professional"
+        categories_to_respond:
+          - "urgent"
+          - "work"
+      
+      # Email archiving rules
+      archiving:
+        auto_archive_spam: true
+        auto_archive_old_newsletters: true
+        days_to_keep_newsletters: 30
+
+  research_agent:
+    agent_type: "ResearchAgent"
+    enabled: true
+    priority: 2
+    config:
+      # Web scraping configuration
+      max_concurrent_requests: 5
+      request_timeout: 30
+      rate_limit_delay: 1.0
+      cache_ttl: 3600
+      respect_robots_txt: true
+      
+      # AI-enhanced research features
+      ai_content_analysis_enabled: true
+      ai_summarization_enabled: true
+      ai_relevance_scoring_enabled: true
+      ai_research_insights_enabled: true
+      ai_fact_checking_enabled: false  # Enable for fact-checking
+      
+      # Content scoring thresholds
+      relevance_threshold: 0.6
+      deduplication_threshold: 0.8
+      
+      # Research sources
+      sources:
+        - name: "academic_papers"
+          type: "web"
+          urls:
+            - "https://arxiv.org"
+            - "https://scholar.google.com"
+        - name: "news_sources"
+          type: "rss"
+          feeds:
+            - "https://feeds.bloomberg.com/markets/news.rss"
+            - "https://rss.cnn.com/rss/edition.rss"
+        - name: "tech_blogs"
+          type: "web"
+          urls:
+            - "https://techcrunch.com"
+            - "https://arstechnica.com"
+      
+      # Report generation settings
+      report_generation:
+        default_type: "comprehensive"  # comprehensive, summary, executive
+        include_ai_analysis: true
+        include_relevance_scores: true
+        max_sources_per_report: 20
+
+# Example usage scenarios:
+
+# 1. AI-Enhanced Email Management:
+# The Gmail agent will automatically:
+# - Classify incoming emails using local AI models
+# - Generate summaries for long emails
+# - Analyze sentiment and urgency
+# - Suggest response templates (when enabled)
+# - Organize emails based on AI classification
+
+# 2. Intelligent Research Automation:
+# The Research agent will:
+# - Analyze content relevance using AI scoring
+# - Generate summaries of research findings
+# - Extract key insights and findings
+# - Create comprehensive research reports
+# - Perform fact-checking (when enabled)
+
+# 3. Privacy-First AI Processing:
+# All AI processing happens locally using Ollama:
+# - No data sent to external AI services
+# - Full control over AI models and processing
+# - Offline capability for sensitive content
+# - Customizable model selection per task
+
+# Environment variable overrides:
+# You can override these settings using environment variables:
+# AGENT_OLLAMA_HOST=localhost
+# AGENT_OLLAMA_PORT=11434
+# AGENT_OLLAMA_DEFAULT_MODEL=llama3.1:8b
+# AGENT_OLLAMA_TEMPERATURE=0.7
+# AGENT_OLLAMA_STREAM_ENABLED=true

@@ -44,6 +44,52 @@ class ConfigSchema:
             }
         }
 
+        self.ollama = {
+            "host": str,
+            "port": int,
+            "timeout": float,
+            "default_model": str,
+            "max_context_length": int,
+            "stream_enabled": bool,
+            "retry_attempts": int,
+            "retry_delay": float,
+            "temperature": float,
+            "top_p": float,
+            "top_k": int,
+            "models": dict
+        }
+
+        self.gmail = {
+            "credentials_path": str,
+            "scopes": list,
+            "user_email": str,
+            "batch_size": int,
+            "rate_limit_per_minute": int,
+            "max_retries": int,
+            "retry_delay": float,
+            "classification": {
+                "enabled": bool,
+                "spam_threshold": float,
+                "importance_threshold": float,
+                "categories": list,
+                "keywords": dict
+            },
+            "auto_response": {
+                "enabled": bool,
+                "response_delay": int,
+                "max_responses_per_day": int,
+                "templates": dict,
+                "trigger_patterns": dict
+            },
+            "archiving": {
+                "enabled": bool,
+                "archive_after_days": int,
+                "auto_label": bool,
+                "label_rules": list,
+                "smart_folders": dict
+            }
+        }
+
         self.agents = dict
 
     def to_dict(self) -> Dict[str, Any]:
@@ -52,6 +98,8 @@ class ConfigSchema:
             "agent_manager": self.agent_manager,
             "logging": self.logging,
             "communication": self.communication,
+            "ollama": self.ollama,
+            "gmail": self.gmail,
             "agents": self.agents
         }
 
@@ -66,6 +114,10 @@ class ConfigSchema:
             schema.logging = data["logging"]
         if "communication" in data:
             schema.communication = data["communication"]
+        if "ollama" in data:
+            schema.ollama = data["ollama"]
+        if "gmail" in data:
+            schema.gmail = data["gmail"]
         if "agents" in data:
             schema.agents = data["agents"]
 
@@ -89,6 +141,7 @@ class ConfigValidator:
         """
         self.schema = schema or ConfigSchema()
         self.required_keys = ["agent_manager", "logging", "communication", "agents"]
+        self.optional_keys = ["ollama", "gmail"]
         self.valid_log_levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 
     def validate(self, config: Dict[str, Any]) -> None:
@@ -108,6 +161,14 @@ class ConfigValidator:
         self._validate_agent_manager(config.get("agent_manager", {}))
         self._validate_logging(config.get("logging", {}))
         self._validate_communication(config.get("communication", {}))
+        
+        # Validate optional sections
+        if "ollama" in config:
+            self._validate_ollama(config.get("ollama", {}))
+        
+        if "gmail" in config:
+            self._validate_gmail(config.get("gmail", {}))
+        
         self._validate_agents(config.get("agents", {}))
 
     def _validate_required_keys(self, config: Dict[str, Any]) -> None:
@@ -168,6 +229,237 @@ class ConfigValidator:
             if "timeout" in broker_config:
                 if not isinstance(broker_config["timeout"], (int, float)) or broker_config["timeout"] <= 0:
                     raise ConfigValidationError("message_broker timeout must be a positive number")
+
+    def _validate_ollama(self, config: Dict[str, Any]) -> None:
+        """Validate Ollama configuration."""
+        if not isinstance(config, dict):
+            raise ConfigValidationError("ollama configuration must be a dictionary")
+
+        # Validate host
+        if "host" in config and not isinstance(config["host"], str):
+            raise ConfigValidationError("ollama host must be a string")
+
+        # Validate port
+        if "port" in config:
+            if not isinstance(config["port"], int) or not (1 <= config["port"] <= 65535):
+                raise ConfigValidationError("ollama port must be an integer between 1 and 65535")
+
+        # Validate timeout
+        if "timeout" in config:
+            if not isinstance(config["timeout"], (int, float)) or config["timeout"] <= 0:
+                raise ConfigValidationError("ollama timeout must be a positive number")
+
+        # Validate default_model
+        if "default_model" in config and not isinstance(config["default_model"], str):
+            raise ConfigValidationError("ollama default_model must be a string")
+
+        # Validate max_context_length
+        if "max_context_length" in config:
+            if not isinstance(config["max_context_length"], int) or config["max_context_length"] <= 0:
+                raise ConfigValidationError("ollama max_context_length must be a positive integer")
+
+        # Validate stream_enabled
+        if "stream_enabled" in config and not isinstance(config["stream_enabled"], bool):
+            raise ConfigValidationError("ollama stream_enabled must be a boolean")
+
+        # Validate retry_attempts
+        if "retry_attempts" in config:
+            if not isinstance(config["retry_attempts"], int) or config["retry_attempts"] < 0:
+                raise ConfigValidationError("ollama retry_attempts must be a non-negative integer")
+
+        # Validate retry_delay
+        if "retry_delay" in config:
+            if not isinstance(config["retry_delay"], (int, float)) or config["retry_delay"] < 0:
+                raise ConfigValidationError("ollama retry_delay must be a non-negative number")
+
+        # Validate temperature
+        if "temperature" in config:
+            if not isinstance(config["temperature"], (int, float)) or not (0 <= config["temperature"] <= 2):
+                raise ConfigValidationError("ollama temperature must be a number between 0 and 2")
+
+        # Validate top_p
+        if "top_p" in config:
+            if not isinstance(config["top_p"], (int, float)) or not (0 <= config["top_p"] <= 1):
+                raise ConfigValidationError("ollama top_p must be a number between 0 and 1")
+
+        # Validate top_k
+        if "top_k" in config:
+            if not isinstance(config["top_k"], int) or config["top_k"] <= 0:
+                raise ConfigValidationError("ollama top_k must be a positive integer")
+
+        # Validate models
+        if "models" in config and not isinstance(config["models"], dict):
+            raise ConfigValidationError("ollama models must be a dictionary")
+
+    def _validate_gmail(self, config: Dict[str, Any]) -> None:
+        """Validate Gmail configuration."""
+        if not isinstance(config, dict):
+            raise ConfigValidationError("gmail configuration must be a dictionary")
+
+        # Validate credentials_path
+        if "credentials_path" in config and not isinstance(config["credentials_path"], str):
+            raise ConfigValidationError("gmail credentials_path must be a string")
+
+        # Validate scopes
+        if "scopes" in config:
+            if not isinstance(config["scopes"], list):
+                raise ConfigValidationError("gmail scopes must be a list")
+            for scope in config["scopes"]:
+                if not isinstance(scope, str):
+                    raise ConfigValidationError("gmail scopes must contain only strings")
+
+        # Validate user_email
+        if "user_email" in config and not isinstance(config["user_email"], str):
+            raise ConfigValidationError("gmail user_email must be a string")
+
+        # Validate batch_size
+        if "batch_size" in config:
+            if not isinstance(config["batch_size"], int) or config["batch_size"] <= 0:
+                raise ConfigValidationError("gmail batch_size must be a positive integer")
+
+        # Validate rate_limit_per_minute
+        if "rate_limit_per_minute" in config:
+            if not isinstance(config["rate_limit_per_minute"], int) or config["rate_limit_per_minute"] <= 0:
+                raise ConfigValidationError("gmail rate_limit_per_minute must be a positive integer")
+
+        # Validate max_retries
+        if "max_retries" in config:
+            if not isinstance(config["max_retries"], int) or config["max_retries"] < 0:
+                raise ConfigValidationError("gmail max_retries must be a non-negative integer")
+
+        # Validate retry_delay
+        if "retry_delay" in config:
+            if not isinstance(config["retry_delay"], (int, float)) or config["retry_delay"] < 0:
+                raise ConfigValidationError("gmail retry_delay must be a non-negative number")
+
+        # Validate classification section
+        if "classification" in config:
+            self._validate_gmail_classification(config["classification"])
+
+        # Validate auto_response section
+        if "auto_response" in config:
+            self._validate_gmail_auto_response(config["auto_response"])
+
+        # Validate archiving section
+        if "archiving" in config:
+            self._validate_gmail_archiving(config["archiving"])
+
+    def _validate_gmail_classification(self, config: Dict[str, Any]) -> None:
+        """Validate Gmail classification configuration."""
+        if not isinstance(config, dict):
+            raise ConfigValidationError("gmail classification configuration must be a dictionary")
+
+        # Validate enabled
+        if "enabled" in config and not isinstance(config["enabled"], bool):
+            raise ConfigValidationError("gmail classification enabled must be a boolean")
+
+        # Validate spam_threshold
+        if "spam_threshold" in config:
+            if not isinstance(config["spam_threshold"], (int, float)) or not (0 <= config["spam_threshold"] <= 1):
+                raise ConfigValidationError("gmail classification spam_threshold must be a number between 0 and 1")
+
+        # Validate importance_threshold
+        if "importance_threshold" in config:
+            if not isinstance(config["importance_threshold"], (int, float)) or not (0 <= config["importance_threshold"] <= 1):
+                raise ConfigValidationError("gmail classification importance_threshold must be a number between 0 and 1")
+
+        # Validate categories
+        if "categories" in config:
+            if not isinstance(config["categories"], list):
+                raise ConfigValidationError("gmail classification categories must be a list")
+            for category in config["categories"]:
+                if not isinstance(category, str):
+                    raise ConfigValidationError("gmail classification categories must contain only strings")
+
+        # Validate keywords
+        if "keywords" in config:
+            if not isinstance(config["keywords"], dict):
+                raise ConfigValidationError("gmail classification keywords must be a dictionary")
+            for category, keywords in config["keywords"].items():
+                if not isinstance(keywords, list):
+                    raise ConfigValidationError(f"gmail classification keywords for {category} must be a list")
+                for keyword in keywords:
+                    if not isinstance(keyword, str):
+                        raise ConfigValidationError(f"gmail classification keywords for {category} must contain only strings")
+
+    def _validate_gmail_auto_response(self, config: Dict[str, Any]) -> None:
+        """Validate Gmail auto response configuration."""
+        if not isinstance(config, dict):
+            raise ConfigValidationError("gmail auto_response configuration must be a dictionary")
+
+        # Validate enabled
+        if "enabled" in config and not isinstance(config["enabled"], bool):
+            raise ConfigValidationError("gmail auto_response enabled must be a boolean")
+
+        # Validate response_delay
+        if "response_delay" in config:
+            if not isinstance(config["response_delay"], int) or config["response_delay"] < 0:
+                raise ConfigValidationError("gmail auto_response response_delay must be a non-negative integer")
+
+        # Validate max_responses_per_day
+        if "max_responses_per_day" in config:
+            if not isinstance(config["max_responses_per_day"], int) or config["max_responses_per_day"] <= 0:
+                raise ConfigValidationError("gmail auto_response max_responses_per_day must be a positive integer")
+
+        # Validate templates
+        if "templates" in config:
+            if not isinstance(config["templates"], dict):
+                raise ConfigValidationError("gmail auto_response templates must be a dictionary")
+            for template_name, template_content in config["templates"].items():
+                if not isinstance(template_content, str):
+                    raise ConfigValidationError(f"gmail auto_response template {template_name} must be a string")
+
+        # Validate trigger_patterns
+        if "trigger_patterns" in config:
+            if not isinstance(config["trigger_patterns"], dict):
+                raise ConfigValidationError("gmail auto_response trigger_patterns must be a dictionary")
+            for pattern_name, patterns in config["trigger_patterns"].items():
+                if not isinstance(patterns, list):
+                    raise ConfigValidationError(f"gmail auto_response trigger_patterns for {pattern_name} must be a list")
+                for pattern in patterns:
+                    if not isinstance(pattern, str):
+                        raise ConfigValidationError(f"gmail auto_response trigger_patterns for {pattern_name} must contain only strings")
+
+    def _validate_gmail_archiving(self, config: Dict[str, Any]) -> None:
+        """Validate Gmail archiving configuration."""
+        if not isinstance(config, dict):
+            raise ConfigValidationError("gmail archiving configuration must be a dictionary")
+
+        # Validate enabled
+        if "enabled" in config and not isinstance(config["enabled"], bool):
+            raise ConfigValidationError("gmail archiving enabled must be a boolean")
+
+        # Validate archive_after_days
+        if "archive_after_days" in config:
+            if not isinstance(config["archive_after_days"], int) or config["archive_after_days"] <= 0:
+                raise ConfigValidationError("gmail archiving archive_after_days must be a positive integer")
+
+        # Validate auto_label
+        if "auto_label" in config and not isinstance(config["auto_label"], bool):
+            raise ConfigValidationError("gmail archiving auto_label must be a boolean")
+
+        # Validate label_rules
+        if "label_rules" in config:
+            if not isinstance(config["label_rules"], list):
+                raise ConfigValidationError("gmail archiving label_rules must be a list")
+            for rule in config["label_rules"]:
+                if not isinstance(rule, dict):
+                    raise ConfigValidationError("gmail archiving label_rules must contain dictionaries")
+                if "pattern" not in rule or "label" not in rule:
+                    raise ConfigValidationError("gmail archiving label_rules must contain 'pattern' and 'label' fields")
+                if not isinstance(rule["pattern"], str) or not isinstance(rule["label"], str):
+                    raise ConfigValidationError("gmail archiving label_rules pattern and label must be strings")
+
+        # Validate smart_folders
+        if "smart_folders" in config:
+            if not isinstance(config["smart_folders"], dict):
+                raise ConfigValidationError("gmail archiving smart_folders must be a dictionary")
+            for folder_name, keywords in config["smart_folders"].items():
+                if not isinstance(keywords, list):
+                    raise ConfigValidationError(f"gmail archiving smart_folders for {folder_name} must be a list")
+                for keyword in keywords:
+                    if not isinstance(keyword, str):
+                        raise ConfigValidationError(f"gmail archiving smart_folders for {folder_name} must contain only strings")
 
     def _validate_agents(self, config: Dict[str, Any]) -> None:
         """Validate agents configuration."""
@@ -283,6 +575,7 @@ class ConfigLoader:
             "agent_manager": {},
             "logging": {},
             "communication": {"message_broker": {}},
+            "ollama": {},
             "agents": {}
         }
 
@@ -293,6 +586,17 @@ class ConfigLoader:
             f"{prefix}LOGGING_FORMAT": ("logging", "format", str),
             f"{prefix}COMMUNICATION_MESSAGE_BROKER_QUEUE_SIZE": ("communication", "message_broker", "queue_size", int),
             f"{prefix}COMMUNICATION_MESSAGE_BROKER_TIMEOUT": ("communication", "message_broker", "timeout", float),
+            f"{prefix}OLLAMA_HOST": ("ollama", "host", str),
+            f"{prefix}OLLAMA_PORT": ("ollama", "port", int),
+            f"{prefix}OLLAMA_TIMEOUT": ("ollama", "timeout", float),
+            f"{prefix}OLLAMA_DEFAULT_MODEL": ("ollama", "default_model", str),
+            f"{prefix}OLLAMA_MAX_CONTEXT_LENGTH": ("ollama", "max_context_length", int),
+            f"{prefix}OLLAMA_STREAM_ENABLED": ("ollama", "stream_enabled", lambda x: x.lower() in ('true', '1', 'yes')),
+            f"{prefix}OLLAMA_RETRY_ATTEMPTS": ("ollama", "retry_attempts", int),
+            f"{prefix}OLLAMA_RETRY_DELAY": ("ollama", "retry_delay", float),
+            f"{prefix}OLLAMA_TEMPERATURE": ("ollama", "temperature", float),
+            f"{prefix}OLLAMA_TOP_P": ("ollama", "top_p", float),
+            f"{prefix}OLLAMA_TOP_K": ("ollama", "top_k", int),
         }
 
         for env_var, path_info in env_mapping.items():
