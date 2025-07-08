@@ -1,0 +1,359 @@
+# Code Agent Configuration for Autonomous Agent System
+# This configuration enables comprehensive GitHub integration and AI-powered
+# code review capabilities with automated development workflow assistance
+
+agent_manager:
+  max_agents: 15
+  heartbeat_interval: 30.0
+  communication_timeout: 15.0
+  retry_attempts: 3
+
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  handlers:
+    console:
+      enabled: true
+    file:
+      enabled: true
+      filename: "code_agent.log"
+      max_size_mb: 100
+      backup_count: 5
+
+communication:
+  message_broker:
+    queue_size: 2000
+    timeout: 10.0
+    max_retry_attempts: 5
+
+# Ollama AI Configuration for Code Analysis
+ollama:
+  host: "localhost"
+  port: 11434
+  timeout: 60
+  default_model: "codellama:7b"
+  max_context_length: 8192
+  stream_enabled: true
+  retry_attempts: 3
+  retry_delay: 2.0
+  
+  # Code analysis specific settings
+  temperature: 0.2
+  top_p: 0.95
+  top_k: 40
+  
+  # Model preferences for different tasks
+  models:
+    code_review: "codellama:13b"
+    security_analysis: "codellama:7b"
+    documentation: "llama3.1:8b"
+    general_analysis: "codellama:7b"
+
+# Agent configurations
+agents:
+  code_agent:
+    agent_type: "CodeAgent"
+    enabled: true
+    priority: 1
+    config:
+      # GitHub API configuration
+      github:
+        # GitHub personal access token (set via environment variable)
+        token: "${GITHUB_TOKEN}"
+        base_url: "https://api.github.com"
+        timeout: 30
+        max_retries: 3
+        retry_delay: 1.0
+        rate_limit_buffer: 10
+        per_page: 100
+        
+        # Webhook configuration
+        webhook_secret: "${GITHUB_WEBHOOK_SECRET}"
+        webhook_events:
+          - "push"
+          - "pull_request" 
+          - "issues"
+          - "repository"
+          - "release"
+          - "commit_comment"
+          - "pull_request_review"
+      
+      # AI-enhanced code analysis
+      ai_analysis:
+        enabled: true
+        model: "codellama:7b"
+        temperature: 0.2
+        max_context_length: 8192
+        analysis_timeout: 60
+        confidence_threshold: 0.7
+        
+        # Feature toggles
+        security_enabled: true
+        performance_enabled: true
+        style_enabled: true
+        documentation_enabled: true
+        
+        # Language-specific configurations
+        languages:
+          python:
+            security_patterns: ["sql_injection", "command_injection", "xss", "path_traversal"]
+            style_rules: ["pep8", "naming", "docstrings", "imports"]
+            performance_checks: ["loops", "comprehensions", "data_structures"]
+          javascript:
+            security_patterns: ["xss", "prototype_pollution", "eval", "cors"]
+            style_rules: ["eslint", "naming", "jsdoc", "semicolons"]
+            performance_checks: ["dom_manipulation", "event_handlers", "memory_leaks"]
+          java:
+            security_patterns: ["sql_injection", "deserialization", "xxe", "path_traversal"]
+            style_rules: ["checkstyle", "naming", "javadoc", "imports"]
+            performance_checks: ["collections", "streams", "concurrency"]
+          go:
+            security_patterns: ["sql_injection", "command_injection", "path_traversal"]
+            style_rules: ["gofmt", "naming", "comments", "errors"]
+            performance_checks: ["goroutines", "channels", "memory"]
+      
+      # Repository monitoring configuration
+      repository_monitoring:
+        enabled: true
+        polling_interval: 300  # 5 minutes
+        events:
+          - "push"
+          - "pull_request"
+          - "issues"
+        
+        # Repositories to monitor (can be added dynamically)
+        repositories: []
+        
+        # Auto-actions on monitored events
+        auto_review_prs: true
+        auto_scan_security: true
+        auto_generate_docs: false
+        notify_on_vulnerabilities: true
+        
+        # Filtering
+        branch_filters: ["main", "master", "develop", "staging"]
+        file_filters: ["*.py", "*.js", "*.java", "*.go", "*.ts", "*.cpp", "*.c"]
+        ignore_patterns: ["*.md", "*.txt", "*.json", "*.yaml", "*.yml"]
+      
+      # Code review configuration
+      code_review:
+        auto_review: true
+        min_confidence: 0.7
+        review_categories:
+          - "security"
+          - "performance"
+          - "style"
+          - "maintainability"
+          - "testing"
+        
+        # Review criteria
+        fail_on_critical_security: true
+        fail_on_high_security: false
+        require_tests_for_new_code: true
+        max_complexity_score: 10
+        min_code_coverage: 80
+        
+        # Comment settings
+        max_comments_per_file: 10
+        min_comment_confidence: 0.8
+        include_positive_feedback: true
+        suggest_improvements: true
+        
+        # Auto-approval criteria
+        auto_approve_on_score: 9.0
+        auto_approve_minor_changes: true
+        auto_approve_documentation_only: true
+      
+      # Workflow automation configuration
+      workflow_automation:
+        enabled: true
+        
+        # Auto-merge configuration
+        auto_merge:
+          enabled: false  # Disabled by default for safety
+          conditions:
+            min_review_score: 9.0
+            require_ci_pass: true
+            require_reviews: 1
+            branch_whitelist: ["feature/*", "bugfix/*"]
+        
+        # Auto-deploy configuration
+        auto_deploy:
+          enabled: false  # Disabled by default
+          environments: ["staging"]
+          conditions:
+            require_tests_pass: true
+            require_security_scan: true
+            min_review_score: 8.5
+        
+        # CI integration
+        ci_integration:
+          enabled: true
+          trigger_on_pr: true
+          trigger_on_push: true
+          fail_on_security_issues: true
+          fail_on_quality_gate: false
+        
+        # Notification workflows
+        notifications:
+          enabled: true
+          channels:
+            - type: "github"
+              events: ["security_vulnerability", "review_completed"]
+            - type: "webhook"
+              url: "${NOTIFICATION_WEBHOOK_URL}"
+              events: ["critical_security", "deployment_ready"]
+      
+      # Security scanning configuration
+      security_scanning:
+        enabled: true
+        scan_on_pr: true
+        scan_on_push_to_main: true
+        
+        # Vulnerability severity handling
+        fail_on_critical: true
+        fail_on_high: false
+        warn_on_medium: true
+        ignore_low: false
+        
+        # Dependency scanning
+        scan_dependencies: true
+        dependency_sources: ["npm", "pip", "maven", "go.mod"]
+        
+        # Custom security rules
+        custom_rules: []
+        exclude_files: ["test/*", "tests/*", "spec/*"]
+      
+      # Documentation generation
+      documentation:
+        enabled: true
+        auto_generate: false  # Manual trigger only
+        
+        # Generation settings
+        include_examples: true
+        include_diagrams: false
+        format: "markdown"
+        output_directory: "docs/api"
+        
+        # Documentation types
+        types:
+          - "api"
+          - "user_guide"
+          - "developer_guide"
+        
+        # Language-specific templates
+        templates:
+          python: "python_api_template.md"
+          javascript: "js_api_template.md"
+          java: "java_api_template.md"
+      
+      # Performance monitoring
+      performance:
+        enabled: true
+        track_metrics: true
+        
+        # Thresholds
+        max_analysis_time: 300  # 5 minutes
+        max_review_time: 600    # 10 minutes
+        max_scan_time: 900      # 15 minutes
+        
+        # Optimization settings
+        cache_analysis_results: true
+        cache_ttl: 3600  # 1 hour
+        parallel_processing: true
+        max_concurrent_analyses: 3
+
+# Environment variable mappings
+environment_variables:
+  # GitHub configuration
+  GITHUB_TOKEN: "Required - GitHub personal access token with repo permissions"
+  GITHUB_WEBHOOK_SECRET: "Optional - Secret for webhook signature validation"
+  
+  # Notification configuration
+  NOTIFICATION_WEBHOOK_URL: "Optional - Webhook URL for notifications"
+  SLACK_WEBHOOK_URL: "Optional - Slack webhook for notifications"
+  EMAIL_SMTP_HOST: "Optional - SMTP host for email notifications"
+  EMAIL_SMTP_PORT: "Optional - SMTP port for email notifications"
+  EMAIL_USERNAME: "Optional - SMTP username"
+  EMAIL_PASSWORD: "Optional - SMTP password"
+  
+  # Advanced configuration
+  OLLAMA_HOST: "Optional - Override Ollama host (default: localhost)"
+  OLLAMA_PORT: "Optional - Override Ollama port (default: 11434)"
+  CODE_AGENT_LOG_LEVEL: "Optional - Override log level (default: INFO)"
+
+# Example repository configurations
+example_repositories:
+  # Open source project monitoring
+  - repository: "owner/public-repo"
+    monitoring:
+      auto_review_prs: true
+      auto_scan_security: true
+      notify_on_vulnerabilities: true
+      events: ["pull_request", "issues"]
+    
+    workflows:
+      - type: "ci_integration"
+        enabled: true
+        conditions:
+          require_tests_pass: true
+  
+  # Private enterprise project
+  - repository: "company/private-repo"
+    monitoring:
+      auto_review_prs: true
+      auto_scan_security: true
+      auto_generate_docs: true
+      events: ["push", "pull_request", "release"]
+    
+    workflows:
+      - type: "auto_deploy"
+        enabled: true
+        environments: ["staging"]
+        conditions:
+          min_review_score: 8.5
+          require_security_scan: true
+
+# Usage examples and scenarios:
+
+# 1. Automated Code Review:
+# The Code Agent will automatically:
+# - Review all pull requests with AI-powered analysis
+# - Check for security vulnerabilities and coding issues
+# - Provide detailed feedback and improvement suggestions
+# - Auto-approve PRs that meet quality criteria
+# - Integrate with CI/CD pipelines for quality gates
+
+# 2. Security Monitoring:
+# - Scan code for security vulnerabilities on every push
+# - Monitor dependencies for known security issues
+# - Generate security reports and recommendations
+# - Notify teams of critical security findings
+# - Track security improvements over time
+
+# 3. Development Workflow Automation:
+# - Auto-merge approved PRs that meet criteria
+# - Trigger deployments for validated changes
+# - Generate documentation for code changes
+# - Notify stakeholders of important events
+# - Maintain code quality standards automatically
+
+# 4. Repository Health Monitoring:
+# - Track code quality metrics over time
+# - Monitor repository activity and patterns
+# - Identify potential issues before they become problems
+# - Provide insights into development productivity
+# - Generate reports for project management
+
+# Integration with existing agents:
+# - Works alongside Gmail Agent for notification delivery
+# - Collaborates with Research Agent for security intelligence
+# - Shares insights through the communication broker
+# - Participates in multi-agent workflows and decision making
+
+# Privacy and Security:
+# - All AI processing happens locally using Ollama
+# - No code or sensitive data sent to external AI services
+# - GitHub tokens and secrets managed securely
+# - Comprehensive audit logging of all agent actions
+# - Fine-grained permission controls for repository access

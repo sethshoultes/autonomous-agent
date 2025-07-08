@@ -1,0 +1,421 @@
+# ============================================================================
+# Docker Compose - Production Environment with Security Hardening
+# ============================================================================
+
+version: '3.8'
+
+services:
+  # -----------------------------------------------------------------------------
+  # Main Application Service
+  # -----------------------------------------------------------------------------
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: minimal
+    container_name: autonomous-agent-app
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 1G
+        reservations:
+          cpus: '1.0'
+          memory: 512M
+      replicas: 2
+      update_config:
+        parallelism: 1
+        delay: 10s
+        order: start-first
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+    ports:
+      - "8000:8000"
+    environment:
+      - ENVIRONMENT=production
+      - LOG_LEVEL=INFO
+      - DATABASE_URL=postgresql://agent:${POSTGRES_PASSWORD}@postgres:5432/autonomous_agent
+      - REDIS_URL=redis://redis:6379/0
+      - OLLAMA_URL=http://ollama:11434
+      - GMAIL_API_ENABLED=true
+      - GITHUB_API_ENABLED=true
+    secrets:
+      - postgres_password
+      - redis_password
+      - gmail_credentials
+      - github_token
+      - jwt_secret
+    volumes:
+      - app_logs:/app/logs:rw
+      - app_data:/app/data:rw
+      - ./config/production:/app/config:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      ollama:
+        condition: service_started
+    networks:
+      - backend
+      - frontend
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 60s
+      timeout: 30s
+      retries: 3
+      start_period: 60s
+    security_opt:
+      - no-new-privileges:true
+      - apparmor:unconfined
+    read_only: true
+    tmpfs:
+      - /tmp:size=100M,noexec,nosuid,nodev
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
+
+  # -----------------------------------------------------------------------------
+  # PostgreSQL Database with Security
+  # -----------------------------------------------------------------------------
+  postgres:
+    image: postgres:15-alpine
+    container_name: autonomous-agent-postgres
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+    environment:
+      - POSTGRES_DB=autonomous_agent
+      - POSTGRES_USER=agent
+      - POSTGRES_PASSWORD_FILE=/run/secrets/postgres_password
+      - POSTGRES_INITDB_ARGS=--auth-host=scram-sha-256
+    secrets:
+      - postgres_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - ./docker/postgres/postgresql.conf:/etc/postgresql/postgresql.conf:ro
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agent -d autonomous_agent"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp:size=100M,noexec,nosuid,nodev
+      - /var/run/postgresql:size=100M,noexec,nosuid,nodev
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
+
+  # -----------------------------------------------------------------------------
+  # Redis Cache with Security
+  # -----------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: autonomous-agent-redis
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+    command: redis-server /usr/local/etc/redis/redis.conf
+    secrets:
+      - redis_password
+    volumes:
+      - redis_data:/data
+      - ./docker/redis/redis.prod.conf:/usr/local/etc/redis/redis.conf:ro
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp:size=100M,noexec,nosuid,nodev
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
+
+  # -----------------------------------------------------------------------------
+  # Ollama Local AI Service
+  # -----------------------------------------------------------------------------
+  ollama:
+    image: ollama/ollama:latest
+    container_name: autonomous-agent-ollama
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '4.0'
+          memory: 8G
+        reservations:
+          cpus: '2.0'
+          memory: 4G
+    volumes:
+      - ollama_data:/root/.ollama
+    networks:
+      - backend
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 60s
+      timeout: 30s
+      retries: 3
+      start_period: 120s
+    security_opt:
+      - no-new-privileges:true
+
+  # -----------------------------------------------------------------------------
+  # Reverse Proxy with SSL Termination
+  # -----------------------------------------------------------------------------
+  nginx:
+    image: nginx:alpine
+    container_name: autonomous-agent-nginx
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./docker/nginx/ssl:/etc/nginx/ssl:ro
+      - ./docker/nginx/conf.d:/etc/nginx/conf.d:ro
+    depends_on:
+      - app
+    networks:
+      - frontend
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
+
+  # -----------------------------------------------------------------------------
+  # Monitoring Services
+  # -----------------------------------------------------------------------------
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: autonomous-agent-prometheus
+    restart: always
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+      - '--storage.tsdb.retention.time=30d'
+    volumes:
+      - ./docker/prometheus/prometheus.prod.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    networks:
+      - monitoring
+    security_opt:
+      - no-new-privileges:true
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: autonomous-agent-grafana
+    restart: always
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD_FILE=/run/secrets/grafana_password
+      - GF_INSTALL_PLUGINS=grafana-clock-panel,grafana-simple-json-datasource
+    secrets:
+      - grafana_password
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./docker/grafana/provisioning:/etc/grafana/provisioning:ro
+    networks:
+      - monitoring
+      - frontend
+    depends_on:
+      - prometheus
+    security_opt:
+      - no-new-privileges:true
+
+  # -----------------------------------------------------------------------------
+  # Log Aggregation
+  # -----------------------------------------------------------------------------
+  elasticsearch:
+    image: elasticsearch:8.10.0
+    container_name: autonomous-agent-elasticsearch
+    restart: always
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=true
+      - ELASTIC_PASSWORD_FILE=/run/secrets/elasticsearch_password
+      - "ES_JAVA_OPTS=-Xms1g -Xmx1g"
+    secrets:
+      - elasticsearch_password
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    networks:
+      - monitoring
+    security_opt:
+      - no-new-privileges:true
+
+  kibana:
+    image: kibana:8.10.0
+    container_name: autonomous-agent-kibana
+    restart: always
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - ELASTICSEARCH_USERNAME=elastic
+      - ELASTICSEARCH_PASSWORD_FILE=/run/secrets/elasticsearch_password
+    secrets:
+      - elasticsearch_password
+    networks:
+      - monitoring
+      - frontend
+    depends_on:
+      - elasticsearch
+    security_opt:
+      - no-new-privileges:true
+
+  # -----------------------------------------------------------------------------
+  # Security Scanning
+  # -----------------------------------------------------------------------------
+  security-scanner:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: security-scan
+    container_name: autonomous-agent-security
+    volumes:
+      - ./security-reports:/app/security-reports
+    networks:
+      - monitoring
+    profiles:
+      - security
+    security_opt:
+      - no-new-privileges:true
+
+# =============================================================================
+# Secrets Management
+# =============================================================================
+secrets:
+  postgres_password:
+    file: ./secrets/postgres_password.txt
+  redis_password:
+    file: ./secrets/redis_password.txt
+  gmail_credentials:
+    file: ./secrets/gmail_credentials.json
+  github_token:
+    file: ./secrets/github_token.txt
+  jwt_secret:
+    file: ./secrets/jwt_secret.txt
+  grafana_password:
+    file: ./secrets/grafana_password.txt
+  elasticsearch_password:
+    file: ./secrets/elasticsearch_password.txt
+
+# =============================================================================
+# Volumes
+# =============================================================================
+volumes:
+  postgres_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /opt/autonomous-agent/data/postgres
+  redis_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /opt/autonomous-agent/data/redis
+  ollama_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /opt/autonomous-agent/data/ollama
+  prometheus_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /opt/autonomous-agent/data/prometheus
+  grafana_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /opt/autonomous-agent/data/grafana
+  elasticsearch_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /opt/autonomous-agent/data/elasticsearch
+  app_logs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /opt/autonomous-agent/logs
+  app_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /opt/autonomous-agent/data/app
+
+# =============================================================================
+# Networks
+# =============================================================================
+networks:
+  frontend:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.21.0.0/16
+  backend:
+    driver: bridge
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.22.0.0/16
+  monitoring:
+    driver: bridge
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.23.0.0/16

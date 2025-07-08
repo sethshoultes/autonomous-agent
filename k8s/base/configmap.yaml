@@ -1,0 +1,332 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: autonomous-agent
+data:
+  # Application configuration
+  app.yaml: |
+    app:
+      name: "Autonomous Agent System"
+      version: "0.1.0"
+      debug: false
+      host: "0.0.0.0"
+      port: 8000
+    
+    database:
+      type: "postgresql"
+      host: "postgres-service"
+      port: 5432
+      name: "autonomous_agent"
+      user: "agent"
+      pool_size: 20
+      max_overflow: 40
+      echo: false
+      ssl_mode: "require"
+    
+    redis:
+      host: "redis-service"
+      port: 6379
+      db: 0
+      max_connections: 200
+      socket_timeout: 5
+      socket_connect_timeout: 5
+      retry_on_timeout: true
+    
+    security:
+      jwt_algorithm: "HS256"
+      access_token_expire_minutes: 15
+      refresh_token_expire_days: 7
+      max_login_attempts: 3
+      lockout_duration: 900
+      require_https: true
+      allowed_origins:
+        - "https://autonomous-agent.example.com"
+      cors_enabled: true
+    
+    rate_limiting:
+      enabled: true
+      rules:
+        global:
+          requests: 1000
+          window: 3600
+          burst: 50
+        api:
+          requests: 100
+          window: 60
+          burst: 5
+        auth:
+          requests: 3
+          window: 300
+          burst: 1
+    
+    logging:
+      level: "INFO"
+      format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+      file: "/app/logs/app.log"
+      max_size: "10MB"
+      backup_count: 5
+      json_format: true
+      structured_logging: true
+    
+    monitoring:
+      enabled: true
+      metrics_port: 9090
+      health_check_interval: 60
+      prometheus_enabled: true
+      grafana_enabled: true
+      alerting_enabled: true
+    
+    external_services:
+      ollama:
+        url: "http://ollama-service:11434"
+        timeout: 30
+        retries: 3
+      gmail:
+        enabled: true
+        credentials_file: "/app/secrets/gmail-credentials.json"
+        rate_limit_per_user: 250
+      github:
+        enabled: true
+        timeout: 30
+        retries: 3
+    
+    agents:
+      max_concurrent: 10
+      heartbeat_interval: 60
+      task_timeout: 300
+      retry_attempts: 3
+      
+      email_agent:
+        enabled: true
+        check_interval: 120
+        max_emails_per_batch: 50
+        
+      github_agent:
+        enabled: true
+        sync_interval: 600
+        max_repos_per_sync: 10
+        
+      research_agent:
+        enabled: true
+        max_concurrent_searches: 3
+        cache_ttl: 3600
+    
+    storage:
+      type: "local"
+      path: "/app/data"
+      max_file_size: 10485760
+      backup_enabled: true
+      backup_interval: 86400
+    
+    backup:
+      enabled: true
+      schedule: "0 2 * * *"
+      retention_days: 90
+      compression: true
+      encryption: true
+    
+    features:
+      email_processing: true
+      github_integration: true
+      research_capabilities: true
+      api_access: true
+      web_interface: true
+      monitoring_dashboard: true
+    
+    performance:
+      max_request_size: 10485760
+      request_timeout: 30
+      worker_processes: 4
+      max_connections: 1000
+      keepalive_timeout: 65
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-config
+  namespace: autonomous-agent
+data:
+  POSTGRES_DB: "autonomous_agent"
+  POSTGRES_USER: "agent"
+  POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redis-config
+  namespace: autonomous-agent
+data:
+  redis.conf: |
+    bind 0.0.0.0
+    port 6379
+    protected-mode yes
+    maxmemory 512mb
+    maxmemory-policy allkeys-lru
+    appendonly yes
+    appendfilename "appendonly.aof"
+    appendfsync everysec
+    auto-aof-rewrite-percentage 100
+    auto-aof-rewrite-min-size 64mb
+    loglevel notice
+    timeout 300
+    tcp-keepalive 60
+    tcp-backlog 511
+    databases 16
+    save 900 1
+    save 300 10
+    save 60 10000
+    slowlog-log-slower-than 10000
+    slowlog-max-len 128
+    notify-keyspace-events "Ex"
+    maxclients 10000
+    rename-command FLUSHDB ""
+    rename-command FLUSHALL ""
+    rename-command DEBUG ""
+    rename-command CONFIG "CONFIG_c83d7b8e2a1f4d8e9f6a2b3c4d5e6f7g"
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-config
+  namespace: autonomous-agent
+data:
+  nginx.conf: |
+    user nginx;
+    worker_processes auto;
+    worker_cpu_affinity auto;
+    worker_rlimit_nofile 65535;
+    
+    error_log /var/log/nginx/error.log warn;
+    pid /var/run/nginx.pid;
+    
+    events {
+        worker_connections 1024;
+        use epoll;
+        multi_accept on;
+    }
+    
+    http {
+        include /etc/nginx/mime.types;
+        default_type application/octet-stream;
+        
+        server_tokens off;
+        add_header X-Frame-Options DENY;
+        add_header X-Content-Type-Options nosniff;
+        add_header X-XSS-Protection "1; mode=block";
+        add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload";
+        add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self';";
+        
+        log_format main '$remote_addr - $remote_user [$time_local] "$request" '
+                        '$status $body_bytes_sent "$http_referer" '
+                        '"$http_user_agent" "$http_x_forwarded_for"';
+        
+        access_log /var/log/nginx/access.log main;
+        
+        sendfile on;
+        tcp_nopush on;
+        tcp_nodelay on;
+        keepalive_timeout 65;
+        types_hash_max_size 2048;
+        
+        gzip on;
+        gzip_vary on;
+        gzip_min_length 1024;
+        gzip_comp_level 6;
+        gzip_types
+            application/javascript
+            application/json
+            application/xml
+            text/css
+            text/javascript
+            text/plain
+            text/xml;
+        
+        limit_req_zone $binary_remote_addr zone=api:10m rate=10r/s;
+        limit_req_zone $binary_remote_addr zone=auth:10m rate=5r/s;
+        limit_conn_zone $binary_remote_addr zone=conn:10m;
+        
+        ssl_protocols TLSv1.2 TLSv1.3;
+        ssl_ciphers ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-SHA256:ECDHE-RSA-AES256-SHA384;
+        ssl_prefer_server_ciphers on;
+        ssl_session_cache shared:SSL:10m;
+        ssl_session_timeout 10m;
+        
+        upstream app_backend {
+            server app-service:8000 max_fails=3 fail_timeout=30s;
+        }
+        
+        server {
+            listen 80;
+            server_name _;
+            return 301 https://$server_name$request_uri;
+        }
+        
+        server {
+            listen 443 ssl http2;
+            server_name _;
+            
+            ssl_certificate /etc/nginx/ssl/tls.crt;
+            ssl_certificate_key /etc/nginx/ssl/tls.key;
+            
+            client_max_body_size 10M;
+            client_body_timeout 60s;
+            client_header_timeout 60s;
+            send_timeout 60s;
+            
+            limit_req zone=api burst=20 nodelay;
+            limit_conn conn 10;
+            
+            location / {
+                proxy_pass http://app_backend;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto $scheme;
+                proxy_set_header X-Forwarded-Host $server_name;
+                
+                proxy_connect_timeout 30s;
+                proxy_send_timeout 30s;
+                proxy_read_timeout 30s;
+                
+                proxy_next_upstream error timeout invalid_header http_500 http_502 http_503 http_504;
+            }
+            
+            location /api/ {
+                limit_req zone=api burst=10 nodelay;
+                
+                proxy_pass http://app_backend;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto $scheme;
+            }
+            
+            location /auth/ {
+                limit_req zone=auth burst=5 nodelay;
+                
+                proxy_pass http://app_backend;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto $scheme;
+            }
+            
+            location /health {
+                proxy_pass http://app_backend;
+                access_log off;
+            }
+            
+            location /metrics {
+                proxy_pass http://app_backend;
+                access_log off;
+                allow 10.0.0.0/8;
+                allow 172.16.0.0/12;
+                allow 192.168.0.0/16;
+                deny all;
+            }
+        }
+    }

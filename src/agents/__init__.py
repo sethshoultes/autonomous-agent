@@ -24,6 +24,12 @@ from .research import (
     ContentExtractionError,
     CacheError,
 )
+try:
+    from .code_agent import CodeAgent
+    CODE_AGENT_AVAILABLE = True
+except ImportError:
+    CODE_AGENT_AVAILABLE = False
+    CodeAgent = None
 
 __all__ = [
     "AgentCommunicationError",
@@ -54,3 +60,7 @@ __all__ = [
     "ContentExtractionError",
     "CacheError",
 ]
+
+# Conditionally add CodeAgent to __all__ if available
+if CODE_AGENT_AVAILABLE:
+    __all__.append("CodeAgent")

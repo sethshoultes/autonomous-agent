@@ -1,0 +1,158 @@
+# ============================================================================
+# Development Environment Configuration
+# ============================================================================
+
+# Override base configuration for development
+app:
+  debug: true
+  host: "0.0.0.0"
+  port: 8000
+
+# Database Configuration
+database:
+  host: "localhost"
+  port: 5432
+  name: "autonomous_agent_dev"
+  echo: true
+  pool_size: 5
+  max_overflow: 10
+
+# Redis Configuration
+redis:
+  host: "localhost"
+  port: 6379
+  db: 0
+  max_connections: 50
+
+# Security Configuration
+security:
+  require_https: false
+  allowed_origins:
+    - "http://localhost:3000"
+    - "http://localhost:8000"
+    - "http://localhost:8080"
+    - "http://127.0.0.1:3000"
+    - "http://127.0.0.1:8000"
+  cors_enabled: true
+
+# Rate Limiting Configuration (More lenient for development)
+rate_limiting:
+  enabled: true
+  rules:
+    global:
+      requests: 10000
+      window: 3600
+      burst: 1000
+    api:
+      requests: 1000
+      window: 60
+      burst: 100
+    auth:
+      requests: 50
+      window: 300
+      burst: 20
+    upload:
+      requests: 100
+      window: 300
+      burst: 10
+
+# Logging Configuration
+logging:
+  level: "DEBUG"
+  file: "/app/logs/dev.log"
+  json_format: false
+  structured_logging: false
+
+# Monitoring Configuration
+monitoring:
+  enabled: true
+  metrics_port: 9090
+  health_check_interval: 15
+  prometheus_enabled: true
+  grafana_enabled: true
+  alerting_enabled: false
+
+# External Services Configuration
+external_services:
+  ollama:
+    url: "http://localhost:11434"
+    timeout: 60
+    retries: 1
+    
+  gmail:
+    enabled: true
+    rate_limit_per_user: 1000
+    
+  github:
+    enabled: true
+    timeout: 60
+    retries: 1
+
+# Agent Configuration
+agents:
+  max_concurrent: 20
+  heartbeat_interval: 15
+  task_timeout: 600
+  retry_attempts: 1
+  
+  email_agent:
+    enabled: true
+    check_interval: 30
+    max_emails_per_batch: 20
+    
+  github_agent:
+    enabled: true
+    sync_interval: 60
+    max_repos_per_sync: 5
+    
+  research_agent:
+    enabled: true
+    max_concurrent_searches: 10
+    cache_ttl: 1800
+
+# Storage Configuration
+storage:
+  type: "local"
+  path: "/app/data/dev"
+  max_file_size: 52428800  # 50MB
+  backup_enabled: false
+
+# Email Configuration
+email:
+  smtp:
+    host: "mailhog"
+    port: 1025
+    use_tls: false
+    timeout: 10
+  
+  from_address: "dev@autonomous-agent.local"
+  from_name: "Autonomous Agent Dev"
+
+# Backup Configuration
+backup:
+  enabled: false
+
+# Feature Flags
+features:
+  email_processing: true
+  github_integration: true
+  research_capabilities: true
+  api_access: true
+  web_interface: true
+  monitoring_dashboard: true
+
+# Performance Configuration
+performance:
+  max_request_size: 52428800  # 50MB
+  request_timeout: 60
+  worker_processes: 2
+  max_connections: 100
+  keepalive_timeout: 30
+
+# Development Configuration
+development:
+  debug_mode: true
+  hot_reload: true
+  profiling: true
+  test_data: true
+  mock_external_services: false

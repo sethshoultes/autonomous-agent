@@ -1,0 +1,171 @@
+# ============================================================================
+# Staging Environment Configuration
+# ============================================================================
+
+# Override base configuration for staging
+app:
+  debug: false
+  host: "0.0.0.0"
+  port: 8000
+
+# Database Configuration
+database:
+  host: "postgres"
+  port: 5432
+  name: "autonomous_agent_staging"
+  echo: false
+  pool_size: 10
+  max_overflow: 20
+  ssl_mode: "require"
+
+# Redis Configuration
+redis:
+  host: "redis"
+  port: 6379
+  db: 1
+  max_connections: 100
+  socket_timeout: 5
+  socket_connect_timeout: 5
+  retry_on_timeout: true
+
+# Security Configuration
+security:
+  require_https: true
+  allowed_origins:
+    - "https://staging.autonomous-agent.example.com"
+    - "https://staging-app.autonomous-agent.example.com"
+  cors_enabled: true
+  access_token_expire_minutes: 30
+  max_login_attempts: 5
+  lockout_duration: 300
+
+# Rate Limiting Configuration (Moderate for staging)
+rate_limiting:
+  enabled: true
+  rules:
+    global:
+      requests: 2000
+      window: 3600
+      burst: 100
+    api:
+      requests: 200
+      window: 60
+      burst: 20
+    auth:
+      requests: 10
+      window: 300
+      burst: 5
+    upload:
+      requests: 20
+      window: 300
+      burst: 5
+
+# Logging Configuration
+logging:
+  level: "INFO"
+  file: "/app/logs/staging.log"
+  json_format: true
+  structured_logging: true
+
+# Monitoring Configuration
+monitoring:
+  enabled: true
+  metrics_port: 9090
+  health_check_interval: 30
+  prometheus_enabled: true
+  grafana_enabled: true
+  alerting_enabled: true
+
+# External Services Configuration
+external_services:
+  ollama:
+    url: "http://ollama:11434"
+    timeout: 30
+    retries: 3
+    
+  gmail:
+    enabled: true
+    rate_limit_per_user: 500
+    
+  github:
+    enabled: true
+    timeout: 30
+    retries: 3
+
+# Agent Configuration
+agents:
+  max_concurrent: 15
+  heartbeat_interval: 30
+  task_timeout: 300
+  retry_attempts: 3
+  
+  email_agent:
+    enabled: true
+    check_interval: 60
+    max_emails_per_batch: 30
+    
+  github_agent:
+    enabled: true
+    sync_interval: 300
+    max_repos_per_sync: 5
+    
+  research_agent:
+    enabled: true
+    max_concurrent_searches: 5
+    cache_ttl: 3600
+
+# Storage Configuration
+storage:
+  type: "local"
+  path: "/app/data/staging"
+  max_file_size: 20971520  # 20MB
+  backup_enabled: true
+  backup_interval: 86400  # 24 hours
+
+# Email Configuration
+email:
+  smtp:
+    host: "${SMTP_HOST}"
+    port: 587
+    use_tls: true
+    timeout: 30
+  
+  from_address: "staging@autonomous-agent.example.com"
+  from_name: "Autonomous Agent Staging"
+
+# Backup Configuration
+backup:
+  enabled: true
+  schedule: "0 3 * * *"  # Daily at 3 AM
+  retention_days: 14
+  compression: true
+  encryption: true
+  
+  destinations:
+    - type: "local"
+      path: "/app/backups"
+
+# Feature Flags
+features:
+  email_processing: true
+  github_integration: true
+  research_capabilities: true
+  api_access: true
+  web_interface: true
+  monitoring_dashboard: true
+
+# Performance Configuration
+performance:
+  max_request_size: 20971520  # 20MB
+  request_timeout: 30
+  worker_processes: 3
+  max_connections: 500
+  keepalive_timeout: 65
+
+# Development Configuration
+development:
+  debug_mode: false
+  hot_reload: false
+  profiling: false
+  test_data: true
+  mock_external_services: false

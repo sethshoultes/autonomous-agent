@@ -1,0 +1,213 @@
+# ============================================================================
+# Base Configuration for Autonomous Agent System
+# ============================================================================
+
+# Application Configuration
+app:
+  name: "Autonomous Agent System"
+  version: "0.1.0"
+  description: "A privacy-focused autonomous agent for email management, research, and development tasks"
+  host: "0.0.0.0"
+  port: 8000
+  debug: false
+  timezone: "UTC"
+
+# Database Configuration
+database:
+  type: "postgresql"
+  host: "localhost"
+  port: 5432
+  name: "autonomous_agent"
+  user: "agent"
+  password: "${DATABASE_PASSWORD}"
+  pool_size: 10
+  max_overflow: 20
+  echo: false
+  ssl_mode: "prefer"
+
+# Redis Configuration
+redis:
+  host: "localhost"
+  port: 6379
+  db: 0
+  password: "${REDIS_PASSWORD}"
+  max_connections: 100
+  socket_timeout: 5
+  socket_connect_timeout: 5
+  retry_on_timeout: true
+
+# Security Configuration
+security:
+  jwt_secret: "${JWT_SECRET}"
+  jwt_algorithm: "HS256"
+  access_token_expire_minutes: 30
+  refresh_token_expire_days: 30
+  max_login_attempts: 5
+  lockout_duration: 300
+  password_min_length: 8
+  require_https: false
+  allowed_origins:
+    - "http://localhost:3000"
+    - "http://localhost:8000"
+  cors_enabled: true
+  
+# Rate Limiting Configuration
+rate_limiting:
+  enabled: true
+  strategy: "sliding_window"
+  rules:
+    global:
+      requests: 1000
+      window: 3600
+      burst: 100
+    api:
+      requests: 100
+      window: 60
+      burst: 10
+    auth:
+      requests: 5
+      window: 300
+      burst: 2
+    upload:
+      requests: 10
+      window: 300
+      burst: 1
+
+# Logging Configuration
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: "/app/logs/app.log"
+  max_size: "10MB"
+  backup_count: 5
+  json_format: false
+  structured_logging: true
+
+# Monitoring Configuration
+monitoring:
+  enabled: true
+  metrics_port: 9090
+  health_check_interval: 30
+  prometheus_enabled: true
+  grafana_enabled: true
+  alerting_enabled: true
+  
+# External Services Configuration
+external_services:
+  ollama:
+    url: "http://localhost:11434"
+    timeout: 30
+    retries: 3
+    models:
+      - "llama2"
+      - "codellama"
+  
+  gmail:
+    enabled: true
+    credentials_file: "/app/config/gmail_credentials.json"
+    scopes:
+      - "https://www.googleapis.com/auth/gmail.readonly"
+      - "https://www.googleapis.com/auth/gmail.send"
+    batch_size: 100
+    rate_limit_per_user: 250
+    
+  github:
+    enabled: true
+    token: "${GITHUB_TOKEN}"
+    base_url: "https://api.github.com"
+    timeout: 30
+    retries: 3
+    
+# Agent Configuration
+agents:
+  max_concurrent: 10
+  heartbeat_interval: 30
+  task_timeout: 300
+  retry_attempts: 3
+  
+  email_agent:
+    enabled: true
+    check_interval: 60
+    max_emails_per_batch: 50
+    
+  github_agent:
+    enabled: true
+    sync_interval: 300
+    max_repos_per_sync: 10
+    
+  research_agent:
+    enabled: true
+    max_concurrent_searches: 5
+    cache_ttl: 3600
+
+# Storage Configuration
+storage:
+  type: "local"
+  path: "/app/data"
+  max_file_size: 10485760  # 10MB
+  allowed_extensions:
+    - ".txt"
+    - ".json"
+    - ".yaml"
+    - ".yml"
+    - ".log"
+  backup_enabled: true
+  backup_interval: 86400  # 24 hours
+
+# Email Configuration
+email:
+  smtp:
+    host: "localhost"
+    port: 587
+    username: "${SMTP_USERNAME}"
+    password: "${SMTP_PASSWORD}"
+    use_tls: true
+    timeout: 30
+  
+  from_address: "noreply@autonomous-agent.local"
+  from_name: "Autonomous Agent System"
+  
+  templates:
+    directory: "/app/templates"
+    cache_enabled: true
+
+# Backup Configuration
+backup:
+  enabled: true
+  schedule: "0 2 * * *"  # Daily at 2 AM
+  retention_days: 30
+  compression: true
+  encryption: true
+  
+  destinations:
+    - type: "local"
+      path: "/app/backups"
+    - type: "s3"
+      bucket: "${BACKUP_S3_BUCKET}"
+      access_key: "${BACKUP_S3_ACCESS_KEY}"
+      secret_key: "${BACKUP_S3_SECRET_KEY}"
+      
+# Feature Flags
+features:
+  email_processing: true
+  github_integration: true
+  research_capabilities: true
+  api_access: true
+  web_interface: true
+  monitoring_dashboard: true
+  
+# Performance Configuration
+performance:
+  max_request_size: 10485760  # 10MB
+  request_timeout: 30
+  worker_processes: 4
+  max_connections: 1000
+  keepalive_timeout: 65
+  
+# Development Configuration
+development:
+  debug_mode: false
+  hot_reload: false
+  profiling: false
+  test_data: false
+  mock_external_services: false

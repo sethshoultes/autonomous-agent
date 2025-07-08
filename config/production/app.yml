@@ -1,0 +1,175 @@
+# ============================================================================
+# Production Environment Configuration
+# ============================================================================
+
+# Override base configuration for production
+app:
+  debug: false
+  host: "0.0.0.0"
+  port: 8000
+
+# Database Configuration
+database:
+  host: "postgres"
+  port: 5432
+  name: "autonomous_agent"
+  echo: false
+  pool_size: 20
+  max_overflow: 40
+  ssl_mode: "require"
+
+# Redis Configuration
+redis:
+  host: "redis"
+  port: 6379
+  db: 0
+  max_connections: 200
+  socket_timeout: 5
+  socket_connect_timeout: 5
+  retry_on_timeout: true
+
+# Security Configuration
+security:
+  require_https: true
+  allowed_origins:
+    - "https://autonomous-agent.example.com"
+    - "https://app.autonomous-agent.example.com"
+  cors_enabled: true
+  access_token_expire_minutes: 15  # Shorter for production
+  max_login_attempts: 3  # Stricter for production
+  lockout_duration: 900  # 15 minutes
+
+# Rate Limiting Configuration (Strict for production)
+rate_limiting:
+  enabled: true
+  rules:
+    global:
+      requests: 1000
+      window: 3600
+      burst: 50
+    api:
+      requests: 100
+      window: 60
+      burst: 5
+    auth:
+      requests: 3
+      window: 300
+      burst: 1
+    upload:
+      requests: 5
+      window: 300
+      burst: 1
+
+# Logging Configuration
+logging:
+  level: "INFO"
+  file: "/app/logs/prod.log"
+  json_format: true
+  structured_logging: true
+
+# Monitoring Configuration
+monitoring:
+  enabled: true
+  metrics_port: 9090
+  health_check_interval: 60
+  prometheus_enabled: true
+  grafana_enabled: true
+  alerting_enabled: true
+
+# External Services Configuration
+external_services:
+  ollama:
+    url: "http://ollama:11434"
+    timeout: 30
+    retries: 3
+    
+  gmail:
+    enabled: true
+    rate_limit_per_user: 250
+    
+  github:
+    enabled: true
+    timeout: 30
+    retries: 3
+
+# Agent Configuration
+agents:
+  max_concurrent: 10
+  heartbeat_interval: 60
+  task_timeout: 300
+  retry_attempts: 3
+  
+  email_agent:
+    enabled: true
+    check_interval: 120
+    max_emails_per_batch: 50
+    
+  github_agent:
+    enabled: true
+    sync_interval: 600
+    max_repos_per_sync: 10
+    
+  research_agent:
+    enabled: true
+    max_concurrent_searches: 3
+    cache_ttl: 3600
+
+# Storage Configuration
+storage:
+  type: "local"
+  path: "/app/data/prod"
+  max_file_size: 10485760  # 10MB
+  backup_enabled: true
+  backup_interval: 86400  # 24 hours
+
+# Email Configuration
+email:
+  smtp:
+    host: "${SMTP_HOST}"
+    port: 587
+    use_tls: true
+    timeout: 30
+  
+  from_address: "noreply@autonomous-agent.example.com"
+  from_name: "Autonomous Agent System"
+
+# Backup Configuration
+backup:
+  enabled: true
+  schedule: "0 2 * * *"  # Daily at 2 AM
+  retention_days: 90
+  compression: true
+  encryption: true
+  
+  destinations:
+    - type: "local"
+      path: "/app/backups"
+    - type: "s3"
+      bucket: "${BACKUP_S3_BUCKET}"
+      access_key: "${BACKUP_S3_ACCESS_KEY}"
+      secret_key: "${BACKUP_S3_SECRET_KEY}"
+
+# Feature Flags
+features:
+  email_processing: true
+  github_integration: true
+  research_capabilities: true
+  api_access: true
+  web_interface: true
+  monitoring_dashboard: true
+
+# Performance Configuration
+performance:
+  max_request_size: 10485760  # 10MB
+  request_timeout: 30
+  worker_processes: 4
+  max_connections: 1000
+  keepalive_timeout: 65
+
+# Development Configuration
+development:
+  debug_mode: false
+  hot_reload: false
+  profiling: false
+  test_data: false
+  mock_external_services: false

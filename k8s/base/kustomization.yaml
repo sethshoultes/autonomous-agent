@@ -1,0 +1,100 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+metadata:
+  name: autonomous-agent-base
+  namespace: autonomous-agent
+
+# Base resources
+resources:
+  - namespace.yaml
+  - secrets.yaml
+  - configmap.yaml
+  - postgres.yaml
+  - redis.yaml
+  - app.yaml
+  - ollama.yaml
+  - nginx.yaml
+  - monitoring.yaml
+  - rbac.yaml
+  - network-policies.yaml
+
+# Common labels
+commonLabels:
+  app.kubernetes.io/name: autonomous-agent
+  app.kubernetes.io/part-of: autonomous-agent-system
+  app.kubernetes.io/version: v1.0.0
+
+# Common annotations
+commonAnnotations:
+  app.kubernetes.io/managed-by: kustomize
+  config.kubernetes.io/namespace: autonomous-agent
+
+# Resource transformations
+transformers:
+  - resource-limits.yaml
+
+# Images
+images:
+  - name: autonomous-agent
+    newTag: v1.0.0
+  - name: postgres
+    newTag: 15-alpine
+  - name: redis
+    newTag: 7-alpine
+  - name: ollama/ollama
+    newTag: latest
+  - name: nginx
+    newTag: alpine
+  - name: prom/prometheus
+    newTag: latest
+  - name: grafana/grafana
+    newTag: latest
+
+# Patches
+patches:
+  - target:
+      kind: Deployment
+      name: app
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: "2Gi"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/cpu
+        value: "1000m"
+
+# Configuration
+configMapGenerator:
+  - name: build-info
+    literals:
+      - build.timestamp=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+      - build.version=v1.0.0
+      - build.commit=unknown
+
+# Secrets
+secretGenerator:
+  - name: runtime-secrets
+    literals:
+      - app.environment=production
+      - app.debug=false
+
+# Namespace
+namespace: autonomous-agent
+
+# Replica configuration
+replicas:
+  - name: app
+    count: 3
+  - name: nginx
+    count: 2
+  - name: postgres
+    count: 1
+  - name: redis
+    count: 1
+  - name: ollama
+    count: 1
+  - name: prometheus
+    count: 1
+  - name: grafana
+    count: 1

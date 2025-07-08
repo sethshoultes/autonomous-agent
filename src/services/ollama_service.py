@@ -14,7 +14,13 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, AsyncGenerator, Dict, List, Optional, Union
 
-import ollama
+try:
+    import ollama
+    OLLAMA_AVAILABLE = True
+except ImportError:
+    OLLAMA_AVAILABLE = False
+    ollama = None
+
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 
@@ -569,6 +575,12 @@ class OllamaService:
             logger: Logger instance
             base_url: Base URL for Ollama API
         """
+        if not OLLAMA_AVAILABLE:
+            raise OllamaError(
+                "Ollama library not available. Install with: pip install ollama",
+                context={"service": "ollama", "available": False}
+            )
+        
         self.config = config
         self.logger = logger
         self.base_url = base_url

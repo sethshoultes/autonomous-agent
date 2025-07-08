@@ -143,6 +143,11 @@ class BaseAgent(AgentInterface):
         self._task_queue: asyncio.Queue = asyncio.Queue()
         self._processing_task: Optional[asyncio.Task] = None
         self._shutdown_event = asyncio.Event()
+        
+        # Performance optimizations
+        self._message_cache: Dict[str, Any] = {}
+        self._cache_max_size = 100
+        self._cache_ttl = 300  # 5 minutes
 
     async def start(self) -> None:
         """
@@ -197,18 +202,39 @@ class BaseAgent(AgentInterface):
             # Signal shutdown
             self._shutdown_event.set()
 
-            # Cancel processing task
+            # Cancel processing task with proper cleanup
             if self._processing_task and not self._processing_task.done():
                 self._processing_task.cancel()
-                with contextlib.suppress(asyncio.CancelledError):
-                    await self._processing_task
+                try:
+                    await asyncio.wait_for(self._processing_task, timeout=5.0)
+                except (asyncio.CancelledError, asyncio.TimeoutError):
+                    pass  # Expected when cancelling
+                except Exception as e:
+                    self.logger.warning(f"Error during task cleanup: {e}")
+
+            # Clear task queue to prevent memory leaks
+            while not self._task_queue.empty():
+                try:
+                    self._task_queue.get_nowait()
+                except asyncio.QueueEmpty:
+                    break
+
+            # Clear caches to prevent memory leaks
+            self._message_cache.clear()
 
             # Perform agent-specific cleanup
             await self._cleanup()
 
-            # Disconnect from message broker
+            # Disconnect from message broker with timeout
             if self.message_broker:
-                await self.message_broker.disconnect()
+                try:
+                    await asyncio.wait_for(self.message_broker.disconnect(), timeout=5.0)
+                except asyncio.TimeoutError:
+                    self.logger.warning("Message broker disconnect timed out")
+                except Exception as e:
+                    self.logger.warning(f"Error disconnecting message broker: {e}")
+                finally:
+                    self.message_broker = None
 
             self.state = AgentState.INACTIVE
             self.logger.info(f"Agent {self.agent_id} stopped successfully")
@@ -328,16 +354,36 @@ class BaseAgent(AgentInterface):
             "agent_id": self.agent_id
         }
 
+    async def __aenter__(self):
+        """Async context manager entry."""
+        await self.start()
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """Async context manager exit with cleanup."""
+        await self.stop()
+        return False  # Don't suppress exceptions
+
     async def _message_processing_loop(self) -> None:
         """Internal message processing loop."""
         while not self._shutdown_event.is_set():
             try:
                 # Get message from queue with timeout
                 try:
-                    # This would be implemented with actual message broker
-                    await asyncio.sleep(0.1)  # Placeholder
-                except TimeoutError:
-                    continue
+                    # Simple implementation to avoid task leakage in tests
+                    # Check shutdown first
+                    if self._shutdown_event.is_set():
+                        break
+                    
+                    # Try to get a message with a short timeout
+                    try:
+                        message = await asyncio.wait_for(self._task_queue.get(), timeout=0.1)
+                        await self.handle_message(message)
+                    except asyncio.TimeoutError:
+                        continue  # No message available, check shutdown again
+                    
+                except asyncio.TimeoutError:
+                    continue  # Just check the shutdown event again
 
             except asyncio.CancelledError:
                 break
@@ -392,3 +438,27 @@ class BaseAgent(AgentInterface):
     async def _cleanup(self) -> None:
         """Cleanup agent-specific resources. Override if needed."""
         pass
+
+    def _cache_get(self, key: str) -> Any:
+        """Get value from cache with TTL check."""
+        if key in self._message_cache:
+            value, timestamp = self._message_cache[key]
+            if time.time() - timestamp < self._cache_ttl:
+                return value
+            else:
+                del self._message_cache[key]
+        return None
+
+    def _cache_set(self, key: str, value: Any) -> None:
+        """Set value in cache with TTL and size management."""
+        # Cleanup old entries if cache is full
+        if len(self._message_cache) >= self._cache_max_size:
+            # Remove oldest entries
+            oldest_keys = sorted(
+                self._message_cache.keys(),
+                key=lambda k: self._message_cache[k][1]
+            )[:10]  # Remove 10 oldest entries
+            for old_key in oldest_keys:
+                del self._message_cache[old_key]
+        
+        self._message_cache[key] = (value, time.time())
