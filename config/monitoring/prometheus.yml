@@ -1,0 +1,183 @@
+# ============================================================================
+# Prometheus Configuration for Autonomous Agent Production Monitoring
+# ============================================================================
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'autonomous-agent-production'
+    environment: 'production'
+
+# Alertmanager configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          - alertmanager:9093
+
+# Rule files for alerting
+rule_files:
+  - "/etc/prometheus/rules/*.yml"
+
+# Scrape configurations
+scrape_configs:
+  # Prometheus itself
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+    scrape_interval: 15s
+    metrics_path: /metrics
+
+  # Main application
+  - job_name: 'autonomous-agent-app'
+    static_configs:
+      - targets: ['app:8000']
+    scrape_interval: 15s
+    metrics_path: /metrics
+    scrape_timeout: 10s
+    honor_labels: true
+
+  # Application health endpoint
+  - job_name: 'autonomous-agent-health'
+    static_configs:
+      - targets: ['app:8000']
+    scrape_interval: 30s
+    metrics_path: /health
+    scrape_timeout: 10s
+
+  # PostgreSQL database
+  - job_name: 'postgresql'
+    static_configs:
+      - targets: ['postgres:5432']
+    scrape_interval: 30s
+    metrics_path: /metrics
+    scrape_timeout: 10s
+
+  # Redis cache
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis:6379']
+    scrape_interval: 30s
+    metrics_path: /metrics
+    scrape_timeout: 10s
+
+  # Ollama AI service
+  - job_name: 'ollama'
+    static_configs:
+      - targets: ['ollama:11434']
+    scrape_interval: 30s
+    metrics_path: /metrics
+    scrape_timeout: 10s
+
+  # Nginx reverse proxy
+  - job_name: 'nginx'
+    static_configs:
+      - targets: ['nginx:80']
+    scrape_interval: 30s
+    metrics_path: /metrics
+    scrape_timeout: 10s
+
+  # Node exporter for system metrics
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+    scrape_interval: 15s
+    metrics_path: /metrics
+    scrape_timeout: 10s
+
+  # Docker daemon metrics
+  - job_name: 'docker'
+    static_configs:
+      - targets: ['docker-exporter:9104']
+    scrape_interval: 30s
+    metrics_path: /metrics
+    scrape_timeout: 10s
+
+  # Gmail Agent specific metrics
+  - job_name: 'gmail-agent'
+    static_configs:
+      - targets: ['app:8000']
+    scrape_interval: 30s
+    metrics_path: /api/v1/agents/gmail/metrics
+    scrape_timeout: 10s
+
+  # Research Agent specific metrics
+  - job_name: 'research-agent'
+    static_configs:
+      - targets: ['app:8000']
+    scrape_interval: 30s
+    metrics_path: /api/v1/agents/research/metrics
+    scrape_timeout: 10s
+
+  # Code Agent specific metrics
+  - job_name: 'code-agent'
+    static_configs:
+      - targets: ['app:8000']
+    scrape_interval: 30s
+    metrics_path: /api/v1/agents/code/metrics
+    scrape_timeout: 10s
+
+  # Intelligence Engine metrics
+  - job_name: 'intelligence-engine'
+    static_configs:
+      - targets: ['app:8000']
+    scrape_interval: 30s
+    metrics_path: /api/v1/intelligence/metrics
+    scrape_timeout: 10s
+
+  # Blackbox exporter for external health checks
+  - job_name: 'blackbox'
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    static_configs:
+      - targets:
+        - http://app:8000/health
+        - http://app:8000/api/v1/health
+        - http://nginx:80/health
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox-exporter:9115
+
+  # Service discovery for dynamic targets
+  - job_name: 'consul-services'
+    consul_sd_configs:
+      - server: 'consul:8500'
+        services: ['autonomous-agent']
+    relabel_configs:
+      - source_labels: [__meta_consul_service]
+        target_label: job
+      - source_labels: [__meta_consul_service_address]
+        target_label: instance
+      - source_labels: [__meta_consul_service_port]
+        target_label: port
+
+# Remote write configuration for long-term storage
+remote_write:
+  - url: "https://prometheus-remote-write.example.com/api/v1/write"
+    queue_config:
+      max_samples_per_send: 1000
+      max_shards: 200
+      capacity: 2500
+    write_relabel_configs:
+      - source_labels: [__name__]
+        regex: 'go_.*'
+        action: drop
+
+# Remote read configuration
+remote_read:
+  - url: "https://prometheus-remote-read.example.com/api/v1/read"
+    read_recent: true
+
+# Storage configuration
+storage:
+  tsdb:
+    path: /prometheus
+    retention.time: 15d
+    retention.size: 10GB
+    wal-compression: true

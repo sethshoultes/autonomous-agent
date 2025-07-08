@@ -1,0 +1,381 @@
+# ============================================================================
+# Prometheus Alert Rules for Autonomous Agent Production
+# ============================================================================
+
+groups:
+  # System Health Alerts
+  - name: system-health
+    rules:
+      - alert: HighCPUUsage
+        expr: 100 - (avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 85
+        for: 5m
+        labels:
+          severity: warning
+          component: system
+        annotations:
+          summary: "High CPU usage detected"
+          description: "CPU usage is above 85% for more than 5 minutes on {{ $labels.instance }}"
+
+      - alert: HighMemoryUsage
+        expr: (node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / node_memory_MemTotal_bytes * 100 > 90
+        for: 5m
+        labels:
+          severity: critical
+          component: system
+        annotations:
+          summary: "High memory usage detected"
+          description: "Memory usage is above 90% for more than 5 minutes on {{ $labels.instance }}"
+
+      - alert: HighDiskUsage
+        expr: (node_filesystem_size_bytes{fstype!="tmpfs"} - node_filesystem_avail_bytes{fstype!="tmpfs"}) / node_filesystem_size_bytes{fstype!="tmpfs"} * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+          component: system
+        annotations:
+          summary: "High disk usage detected"
+          description: "Disk usage is above 85% for more than 5 minutes on {{ $labels.instance }} (mountpoint: {{ $labels.mountpoint }})"
+
+      - alert: CriticalDiskUsage
+        expr: (node_filesystem_size_bytes{fstype!="tmpfs"} - node_filesystem_avail_bytes{fstype!="tmpfs"}) / node_filesystem_size_bytes{fstype!="tmpfs"} * 100 > 95
+        for: 2m
+        labels:
+          severity: critical
+          component: system
+        annotations:
+          summary: "Critical disk usage detected"
+          description: "Disk usage is above 95% for more than 2 minutes on {{ $labels.instance }} (mountpoint: {{ $labels.mountpoint }})"
+
+  # Application Health Alerts
+  - name: application-health
+    rules:
+      - alert: ApplicationDown
+        expr: up{job="autonomous-agent-app"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: application
+        annotations:
+          summary: "Autonomous Agent application is down"
+          description: "The main application has been down for more than 1 minute"
+
+      - alert: ApplicationHighErrorRate
+        expr: rate(http_requests_total{job="autonomous-agent-app", status=~"5.."}[5m]) / rate(http_requests_total{job="autonomous-agent-app"}[5m]) > 0.1
+        for: 3m
+        labels:
+          severity: warning
+          component: application
+        annotations:
+          summary: "High error rate detected"
+          description: "Error rate is above 10% for more than 3 minutes"
+
+      - alert: ApplicationHighResponseTime
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{job="autonomous-agent-app"}[5m])) > 2
+        for: 5m
+        labels:
+          severity: warning
+          component: application
+        annotations:
+          summary: "High response time detected"
+          description: "95th percentile response time is above 2 seconds for more than 5 minutes"
+
+      - alert: ApplicationHealthCheckFailed
+        expr: probe_success{job="blackbox"} == 0
+        for: 3m
+        labels:
+          severity: critical
+          component: application
+        annotations:
+          summary: "Application health check failed"
+          description: "Health check has been failing for more than 3 minutes for {{ $labels.instance }}"
+
+  # Database Alerts
+  - name: database-health
+    rules:
+      - alert: PostgreSQLDown
+        expr: up{job="postgresql"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: database
+        annotations:
+          summary: "PostgreSQL database is down"
+          description: "PostgreSQL has been down for more than 1 minute"
+
+      - alert: PostgreSQLHighConnections
+        expr: pg_stat_activity_count / pg_settings_max_connections * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+          component: database
+        annotations:
+          summary: "High PostgreSQL connection usage"
+          description: "PostgreSQL connection usage is above 80% for more than 5 minutes"
+
+      - alert: PostgreSQLSlowQueries
+        expr: rate(pg_stat_statements_mean_time_ms[5m]) > 1000
+        for: 5m
+        labels:
+          severity: warning
+          component: database
+        annotations:
+          summary: "PostgreSQL slow queries detected"
+          description: "Average query time is above 1000ms for more than 5 minutes"
+
+      - alert: PostgreSQLReplicationLag
+        expr: pg_stat_replication_lag_bytes > 1048576
+        for: 5m
+        labels:
+          severity: warning
+          component: database
+        annotations:
+          summary: "PostgreSQL replication lag detected"
+          description: "Replication lag is above 1MB for more than 5 minutes"
+
+  # Redis Alerts
+  - name: redis-health
+    rules:
+      - alert: RedisDown
+        expr: up{job="redis"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: cache
+        annotations:
+          summary: "Redis cache is down"
+          description: "Redis has been down for more than 1 minute"
+
+      - alert: RedisHighMemoryUsage
+        expr: redis_memory_used_bytes / redis_memory_max_bytes * 100 > 90
+        for: 5m
+        labels:
+          severity: warning
+          component: cache
+        annotations:
+          summary: "High Redis memory usage"
+          description: "Redis memory usage is above 90% for more than 5 minutes"
+
+      - alert: RedisHighConnections
+        expr: redis_connected_clients / redis_config_maxclients * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+          component: cache
+        annotations:
+          summary: "High Redis connection usage"
+          description: "Redis connection usage is above 80% for more than 5 minutes"
+
+  # Agent-Specific Alerts
+  - name: agent-health
+    rules:
+      - alert: GmailAgentDown
+        expr: up{job="gmail-agent"} == 0
+        for: 2m
+        labels:
+          severity: warning
+          component: gmail-agent
+        annotations:
+          summary: "Gmail Agent is down"
+          description: "Gmail Agent has been down for more than 2 minutes"
+
+      - alert: ResearchAgentDown
+        expr: up{job="research-agent"} == 0
+        for: 2m
+        labels:
+          severity: warning
+          component: research-agent
+        annotations:
+          summary: "Research Agent is down"
+          description: "Research Agent has been down for more than 2 minutes"
+
+      - alert: CodeAgentDown
+        expr: up{job="code-agent"} == 0
+        for: 2m
+        labels:
+          severity: warning
+          component: code-agent
+        annotations:
+          summary: "Code Agent is down"
+          description: "Code Agent has been down for more than 2 minutes"
+
+      - alert: IntelligenceEngineDown
+        expr: up{job="intelligence-engine"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          component: intelligence-engine
+        annotations:
+          summary: "Intelligence Engine is down"
+          description: "Intelligence Engine has been down for more than 2 minutes"
+
+      - alert: HighAgentErrorRate
+        expr: rate(agent_errors_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          component: agent
+        annotations:
+          summary: "High agent error rate"
+          description: "Agent {{ $labels.agent }} error rate is above 10% for more than 5 minutes"
+
+      - alert: AgentTaskQueueFull
+        expr: agent_task_queue_size > 1000
+        for: 5m
+        labels:
+          severity: warning
+          component: agent
+        annotations:
+          summary: "Agent task queue is full"
+          description: "Agent {{ $labels.agent }} task queue has more than 1000 items for more than 5 minutes"
+
+  # Ollama AI Service Alerts
+  - name: ollama-health
+    rules:
+      - alert: OllamaDown
+        expr: up{job="ollama"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          component: ollama
+        annotations:
+          summary: "Ollama AI service is down"
+          description: "Ollama has been down for more than 2 minutes"
+
+      - alert: OllamaHighResponseTime
+        expr: histogram_quantile(0.95, rate(ollama_request_duration_seconds_bucket[5m])) > 30
+        for: 5m
+        labels:
+          severity: warning
+          component: ollama
+        annotations:
+          summary: "Ollama high response time"
+          description: "Ollama 95th percentile response time is above 30 seconds for more than 5 minutes"
+
+      - alert: OllamaHighErrorRate
+        expr: rate(ollama_errors_total[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          component: ollama
+        annotations:
+          summary: "Ollama high error rate"
+          description: "Ollama error rate is above 5% for more than 5 minutes"
+
+  # Network and Security Alerts
+  - name: network-security
+    rules:
+      - alert: NginxDown
+        expr: up{job="nginx"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: nginx
+        annotations:
+          summary: "Nginx reverse proxy is down"
+          description: "Nginx has been down for more than 1 minute"
+
+      - alert: HighTrafficSpike
+        expr: rate(nginx_http_requests_total[5m]) > 1000
+        for: 5m
+        labels:
+          severity: warning
+          component: nginx
+        annotations:
+          summary: "High traffic spike detected"
+          description: "Request rate is above 1000 requests/second for more than 5 minutes"
+
+      - alert: SSLCertificateExpiring
+        expr: ssl_certificate_expiry_seconds < 604800
+        for: 1h
+        labels:
+          severity: warning
+          component: security
+        annotations:
+          summary: "SSL certificate expiring soon"
+          description: "SSL certificate for {{ $labels.instance }} expires in less than 7 days"
+
+      - alert: FailedLogins
+        expr: rate(failed_login_attempts_total[5m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+          component: security
+        annotations:
+          summary: "High failed login attempts"
+          description: "More than 10 failed login attempts per second for more than 5 minutes"
+
+  # Docker Container Alerts
+  - name: docker-health
+    rules:
+      - alert: ContainerDown
+        expr: up{job="docker"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: docker
+        annotations:
+          summary: "Docker container is down"
+          description: "Container {{ $labels.container }} has been down for more than 1 minute"
+
+      - alert: ContainerHighMemoryUsage
+        expr: container_memory_usage_bytes / container_spec_memory_limit_bytes * 100 > 90
+        for: 5m
+        labels:
+          severity: warning
+          component: docker
+        annotations:
+          summary: "Container high memory usage"
+          description: "Container {{ $labels.container }} memory usage is above 90% for more than 5 minutes"
+
+      - alert: ContainerHighCPUUsage
+        expr: rate(container_cpu_usage_seconds_total[5m]) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+          component: docker
+        annotations:
+          summary: "Container high CPU usage"
+          description: "Container {{ $labels.container }} CPU usage is above 85% for more than 5 minutes"
+
+      - alert: ContainerRestartLoop
+        expr: rate(container_restarts_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          component: docker
+        annotations:
+          summary: "Container restart loop detected"
+          description: "Container {{ $labels.container }} has been restarting frequently for more than 5 minutes"
+
+  # Business Logic Alerts
+  - name: business-logic
+    rules:
+      - alert: LowTaskProcessingRate
+        expr: rate(tasks_processed_total[5m]) < 1
+        for: 10m
+        labels:
+          severity: warning
+          component: business
+        annotations:
+          summary: "Low task processing rate"
+          description: "Task processing rate is below 1 task/second for more than 10 minutes"
+
+      - alert: HighTaskFailureRate
+        expr: rate(tasks_failed_total[5m]) / rate(tasks_processed_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          component: business
+        annotations:
+          summary: "High task failure rate"
+          description: "Task failure rate is above 10% for more than 5 minutes"
+
+      - alert: UserAuthenticationFailures
+        expr: rate(user_auth_failures_total[5m]) > 5
+        for: 5m
+        labels:
+          severity: warning
+          component: security
+        annotations:
+          summary: "High authentication failure rate"
+          description: "User authentication failure rate is above 5/second for more than 5 minutes"

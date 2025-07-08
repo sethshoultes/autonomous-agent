@@ -1,0 +1,273 @@
+# ============================================================================
+# Alertmanager Configuration for Autonomous Agent Production
+# ============================================================================
+
+global:
+  smtp_smarthost: 'localhost:587'
+  smtp_from: 'alerts@autonomous-agent.local'
+  smtp_auth_username: 'alerts@autonomous-agent.local'
+  smtp_auth_password: 'your-smtp-password'
+  
+route:
+  group_by: ['alertname', 'cluster', 'service']
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 12h
+  receiver: 'default-receiver'
+  routes:
+    # Critical alerts route
+    - match:
+        severity: critical
+      receiver: 'critical-alerts'
+      group_wait: 10s
+      group_interval: 2m
+      repeat_interval: 5m
+      
+    # Warning alerts route
+    - match:
+        severity: warning
+      receiver: 'warning-alerts'
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 2h
+      
+    # Application specific routes
+    - match:
+        component: application
+      receiver: 'app-team'
+      
+    - match:
+        component: database
+      receiver: 'db-team'
+      
+    - match:
+        component: security
+      receiver: 'security-team'
+      group_wait: 5s
+      repeat_interval: 30m
+
+receivers:
+  # Default receiver
+  - name: 'default-receiver'
+    email_configs:
+      - to: 'ops-team@autonomous-agent.local'
+        subject: '[Autonomous Agent] Alert: {{ .GroupLabels.alertname }}'
+        body: |
+          {{ range .Alerts }}
+          Alert: {{ .Annotations.summary }}
+          Description: {{ .Annotations.description }}
+          Labels: {{ range .Labels.SortedPairs }}{{ .Name }}: {{ .Value }}{{ end }}
+          {{ end }}
+        headers:
+          Subject: '[Autonomous Agent] Alert Notification'
+          
+  # Critical alerts receiver
+  - name: 'critical-alerts'
+    email_configs:
+      - to: 'ops-team@autonomous-agent.local'
+        subject: '[CRITICAL] Autonomous Agent Alert: {{ .GroupLabels.alertname }}'
+        body: |
+          🚨 CRITICAL ALERT 🚨
+          
+          {{ range .Alerts }}
+          Alert: {{ .Annotations.summary }}
+          Description: {{ .Annotations.description }}
+          Severity: {{ .Labels.severity }}
+          Component: {{ .Labels.component }}
+          Time: {{ .StartsAt }}
+          
+          Labels:
+          {{ range .Labels.SortedPairs }}  {{ .Name }}: {{ .Value }}
+          {{ end }}
+          {{ end }}
+        headers:
+          Subject: '[CRITICAL] Autonomous Agent Alert'
+          Priority: 'high'
+          
+    slack_configs:
+      - api_url: 'https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK'
+        channel: '#critical-alerts'
+        username: 'Autonomous Agent Alerts'
+        icon_emoji: ':rotating_light:'
+        title: 'Critical Alert: {{ .GroupLabels.alertname }}'
+        text: |
+          {{ range .Alerts }}
+          🚨 *{{ .Annotations.summary }}*
+          {{ .Annotations.description }}
+          
+          *Labels:*
+          {{ range .Labels.SortedPairs }}• {{ .Name }}: {{ .Value }}
+          {{ end }}
+          {{ end }}
+        actions:
+          - type: button
+            text: 'View Dashboard'
+            url: 'http://localhost:3000/d/autonomous-agent/autonomous-agent-overview'
+          - type: button
+            text: 'Acknowledge'
+            url: 'http://localhost:9093/#/alerts'
+            
+    pagerduty_configs:
+      - service_key: 'your-pagerduty-service-key'
+        description: '{{ .GroupLabels.alertname }}: {{ .Annotations.summary }}'
+        details:
+          component: '{{ .GroupLabels.component }}'
+          environment: 'production'
+          cluster: '{{ .GroupLabels.cluster }}'
+          
+  # Warning alerts receiver
+  - name: 'warning-alerts'
+    email_configs:
+      - to: 'ops-team@autonomous-agent.local'
+        subject: '[WARNING] Autonomous Agent Alert: {{ .GroupLabels.alertname }}'
+        body: |
+          ⚠️ WARNING ALERT ⚠️
+          
+          {{ range .Alerts }}
+          Alert: {{ .Annotations.summary }}
+          Description: {{ .Annotations.description }}
+          Severity: {{ .Labels.severity }}
+          Component: {{ .Labels.component }}
+          Time: {{ .StartsAt }}
+          
+          Labels:
+          {{ range .Labels.SortedPairs }}  {{ .Name }}: {{ .Value }}
+          {{ end }}
+          {{ end }}
+          
+    slack_configs:
+      - api_url: 'https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK'
+        channel: '#alerts'
+        username: 'Autonomous Agent Alerts'
+        icon_emoji: ':warning:'
+        title: 'Warning Alert: {{ .GroupLabels.alertname }}'
+        text: |
+          {{ range .Alerts }}
+          ⚠️ *{{ .Annotations.summary }}*
+          {{ .Annotations.description }}
+          
+          *Labels:*
+          {{ range .Labels.SortedPairs }}• {{ .Name }}: {{ .Value }}
+          {{ end }}
+          {{ end }}
+          
+  # Application team receiver
+  - name: 'app-team'
+    email_configs:
+      - to: 'app-team@autonomous-agent.local'
+        subject: '[App Team] Autonomous Agent Alert: {{ .GroupLabels.alertname }}'
+        body: |
+          Application Alert
+          
+          {{ range .Alerts }}
+          Alert: {{ .Annotations.summary }}
+          Description: {{ .Annotations.description }}
+          Component: {{ .Labels.component }}
+          Instance: {{ .Labels.instance }}
+          Time: {{ .StartsAt }}
+          {{ end }}
+          
+    slack_configs:
+      - api_url: 'https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK'
+        channel: '#app-team'
+        username: 'Autonomous Agent Alerts'
+        icon_emoji: ':computer:'
+        title: 'Application Alert: {{ .GroupLabels.alertname }}'
+        
+  # Database team receiver
+  - name: 'db-team'
+    email_configs:
+      - to: 'db-team@autonomous-agent.local'
+        subject: '[DB Team] Autonomous Agent Alert: {{ .GroupLabels.alertname }}'
+        body: |
+          Database Alert
+          
+          {{ range .Alerts }}
+          Alert: {{ .Annotations.summary }}
+          Description: {{ .Annotations.description }}
+          Component: {{ .Labels.component }}
+          Instance: {{ .Labels.instance }}
+          Time: {{ .StartsAt }}
+          {{ end }}
+          
+    slack_configs:
+      - api_url: 'https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK'
+        channel: '#db-team'
+        username: 'Autonomous Agent Alerts'
+        icon_emoji: ':database:'
+        title: 'Database Alert: {{ .GroupLabels.alertname }}'
+        
+  # Security team receiver
+  - name: 'security-team'
+    email_configs:
+      - to: 'security-team@autonomous-agent.local'
+        subject: '[SECURITY] Autonomous Agent Alert: {{ .GroupLabels.alertname }}'
+        body: |
+          🔒 SECURITY ALERT 🔒
+          
+          {{ range .Alerts }}
+          Alert: {{ .Annotations.summary }}
+          Description: {{ .Annotations.description }}
+          Component: {{ .Labels.component }}
+          Instance: {{ .Labels.instance }}
+          Time: {{ .StartsAt }}
+          
+          This requires immediate attention from the security team.
+          {{ end }}
+        headers:
+          Subject: '[SECURITY] Autonomous Agent Alert'
+          Priority: 'high'
+          
+    slack_configs:
+      - api_url: 'https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK'
+        channel: '#security-alerts'
+        username: 'Autonomous Agent Security'
+        icon_emoji: ':lock:'
+        title: 'Security Alert: {{ .GroupLabels.alertname }}'
+        text: |
+          {{ range .Alerts }}
+          🔒 *{{ .Annotations.summary }}*
+          {{ .Annotations.description }}
+          
+          *Immediate security attention required*
+          
+          *Labels:*
+          {{ range .Labels.SortedPairs }}• {{ .Name }}: {{ .Value }}
+          {{ end }}
+          {{ end }}
+          
+    pagerduty_configs:
+      - service_key: 'your-security-pagerduty-service-key'
+        description: 'SECURITY: {{ .GroupLabels.alertname }}: {{ .Annotations.summary }}'
+        details:
+          component: '{{ .GroupLabels.component }}'
+          environment: 'production'
+          cluster: '{{ .GroupLabels.cluster }}'
+          alert_type: 'security'
+
+# Inhibit rules
+inhibit_rules:
+  # Inhibit warning alerts when critical alerts are firing
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['alertname', 'cluster', 'service']
+    
+  # Inhibit application alerts when system is down
+  - source_match:
+      alertname: 'ApplicationDown'
+    target_match:
+      component: 'application'
+    equal: ['instance']
+    
+  # Inhibit database alerts when database is down
+  - source_match:
+      alertname: 'PostgreSQLDown'
+    target_match:
+      component: 'database'
+    equal: ['instance']
+
+# Templates
+templates:
+  - '/etc/alertmanager/templates/*.tmpl'

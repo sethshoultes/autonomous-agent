@@ -1,0 +1,315 @@
+# Authentication System Configuration
+# This file contains configuration for the comprehensive authentication and authorization system
+
+# Application Settings
+app:
+  name: "Autonomous Agent System"
+  version: "1.0.0"
+  debug: false
+  environment: "production"
+
+# Database Configuration
+database:
+  url: "postgresql://agent:password@localhost/autonomous_agent"
+  pool_size: 10
+  max_overflow: 20
+  pool_timeout: 30
+  pool_recycle: 3600
+
+# Redis Configuration
+redis:
+  url: "redis://localhost:6379"
+  password: null
+  db: 0
+  max_connections: 10
+  socket_timeout: 5
+
+# JWT Configuration
+jwt:
+  secret_key: "${JWT_SECRET_KEY}"  # Set via environment variable
+  algorithm: "HS256"
+  access_token_expire_minutes: 30
+  refresh_token_expire_days: 30
+  token_blacklist_enabled: true
+
+# Authentication Settings
+auth:
+  max_login_attempts: 5
+  lockout_duration_seconds: 300  # 5 minutes
+  password_history_count: 5
+  password_min_length: 8
+  password_complexity_required: true
+  session_timeout_minutes: 480  # 8 hours
+  concurrent_sessions_limit: 5
+
+# Password Policy
+password_policy:
+  min_length: 8
+  max_length: 128
+  require_uppercase: true
+  require_lowercase: true
+  require_numbers: true
+  require_special_chars: true
+  special_chars: "!@#$%^&*()_+-=[]{}|;:,.<>?"
+  prevent_common_passwords: true
+  prevent_personal_info: true
+
+# Multi-Factor Authentication
+mfa:
+  enabled: true
+  totp:
+    issuer: "Autonomous Agent System"
+    window: 2  # Allow 2 time windows for clock skew
+    backup_codes_count: 10
+    recovery_codes_count: 5
+  sms:
+    enabled: false
+    provider: "twilio"
+    api_key: "${SMS_API_KEY}"
+    from_number: "${SMS_FROM_NUMBER}"
+  email:
+    enabled: true
+    provider: "sendgrid"
+    api_key: "${EMAIL_API_KEY}"
+    from_email: "noreply@autonomous-agent.com"
+    from_name: "Autonomous Agent System"
+
+# OAuth2 Configuration
+oauth:
+  enabled: true
+  providers:
+    google:
+      enabled: true
+      client_id: "${GOOGLE_CLIENT_ID}"
+      client_secret: "${GOOGLE_CLIENT_SECRET}"
+      redirect_uri: "https://your-domain.com/auth/oauth/google/callback"
+      scopes: ["openid", "email", "profile"]
+    github:
+      enabled: true
+      client_id: "${GITHUB_CLIENT_ID}"
+      client_secret: "${GITHUB_CLIENT_SECRET}"
+      redirect_uri: "https://your-domain.com/auth/oauth/github/callback"
+      scopes: ["user:email", "read:user"]
+    microsoft:
+      enabled: false
+      client_id: "${MICROSOFT_CLIENT_ID}"
+      client_secret: "${MICROSOFT_CLIENT_SECRET}"
+      redirect_uri: "https://your-domain.com/auth/oauth/microsoft/callback"
+      scopes: ["openid", "profile", "email"]
+      use_pkce: true
+
+# Rate Limiting Configuration
+rate_limiting:
+  enabled: true
+  redis_url: "redis://localhost:6379"
+  default_rules:
+    global:
+      requests: 1000
+      window: 3600  # 1 hour
+      burst: 100
+    api:
+      requests: 100
+      window: 60  # 1 minute
+      burst: 10
+    auth:
+      requests: 5
+      window: 300  # 5 minutes
+      burst: 2
+    upload:
+      requests: 10
+      window: 300  # 5 minutes
+      burst: 1
+    password_reset:
+      requests: 3
+      window: 300  # 5 minutes
+      burst: 1
+
+# Security Monitoring
+security_monitoring:
+  enabled: true
+  geoip_db_path: "/usr/local/share/GeoIP/GeoLite2-City.mmdb"
+  threat_detection:
+    enabled: true
+    suspicious_location_threshold_km: 1000
+    unusual_time_threshold_hours: 4
+    max_failed_attempts_per_ip: 10
+    brute_force_detection_window: 300
+  alert_retention_days: 90
+  event_retention_days: 180
+  
+# Audit Logging
+audit_logging:
+  enabled: true
+  log_authentication: true
+  log_authorization: true
+  log_user_actions: true
+  log_security_events: true
+  log_admin_actions: true
+  retention_days: 365
+  
+# User Management
+user_management:
+  registration:
+    enabled: true
+    require_email_verification: true
+    auto_activate: false
+    default_role: "user"
+  profiles:
+    max_profile_image_size: 5242880  # 5MB
+    allowed_image_types: ["jpg", "jpeg", "png", "gif"]
+  preferences:
+    categories: ["email", "agents", "notifications", "privacy", "ui"]
+  data_retention:
+    inactive_user_days: 365
+    deleted_user_data_retention_days: 30
+
+# Email Configuration
+email:
+  provider: "sendgrid"
+  api_key: "${EMAIL_API_KEY}"
+  from_email: "noreply@autonomous-agent.com"
+  from_name: "Autonomous Agent System"
+  templates:
+    welcome: "welcome_email.html"
+    password_reset: "password_reset_email.html"
+    email_verification: "email_verification.html"
+    security_alert: "security_alert_email.html"
+    mfa_backup_codes: "mfa_backup_codes.html"
+
+# Security Headers
+security_headers:
+  strict_transport_security: "max-age=31536000; includeSubDomains"
+  content_security_policy: "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'"
+  x_frame_options: "DENY"
+  x_content_type_options: "nosniff"
+  x_xss_protection: "1; mode=block"
+  referrer_policy: "strict-origin-when-cross-origin"
+  permissions_policy: "geolocation=(), microphone=(), camera=()"
+
+# CORS Configuration
+cors:
+  enabled: true
+  allowed_origins: 
+    - "http://localhost:3000"
+    - "https://your-domain.com"
+  allowed_methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+  allowed_headers: ["*"]
+  allow_credentials: true
+  max_age: 86400
+
+# Session Management
+session:
+  secure: true
+  http_only: true
+  same_site: "strict"
+  max_age: 28800  # 8 hours
+  cleanup_interval: 3600  # 1 hour
+
+# API Keys
+api_keys:
+  enabled: true
+  max_keys_per_user: 10
+  default_expiration_days: 365
+  rate_limiting_enabled: true
+  permissions:
+    - "read"
+    - "write"
+    - "admin"
+
+# Metrics and Monitoring
+metrics:
+  enabled: true
+  prometheus_port: 9090
+  collection_interval: 30
+  retention_days: 30
+  export_format: "prometheus"
+
+# Backup and Recovery
+backup:
+  enabled: true
+  schedule: "0 2 * * *"  # Daily at 2 AM
+  retention_days: 30
+  encryption_enabled: true
+  destinations:
+    - type: "s3"
+      bucket: "autonomous-agent-backups"
+      region: "us-east-1"
+
+# Compliance
+compliance:
+  gdpr_enabled: true
+  ccpa_enabled: true
+  data_retention_policy: "user_controlled"
+  cookie_consent_required: true
+  privacy_policy_url: "https://your-domain.com/privacy"
+  terms_of_service_url: "https://your-domain.com/terms"
+
+# Development Settings (only in development/staging)
+development:
+  debug_mode: false
+  mock_external_services: false
+  test_user_enabled: false
+  swagger_ui_enabled: false
+  profiling_enabled: false
+  
+# Logging Configuration
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: "/var/log/autonomous-agent/app.log"
+  max_size: "100MB"
+  backup_count: 5
+  rotation: "daily"
+  
+# Feature Flags
+features:
+  user_registration: true
+  oauth_login: true
+  mfa_required_for_admin: true
+  password_reset: true
+  email_verification: true
+  user_profile_management: true
+  api_key_management: true
+  security_monitoring: true
+  audit_logging: true
+  rate_limiting: true
+  
+# Environment-specific overrides
+environments:
+  development:
+    app:
+      debug: true
+    database:
+      url: "postgresql://agent:password@localhost/autonomous_agent_dev"
+    redis:
+      url: "redis://localhost:6379/1"
+    jwt:
+      access_token_expire_minutes: 60
+    auth:
+      max_login_attempts: 10
+      lockout_duration_seconds: 60
+    development:
+      debug_mode: true
+      swagger_ui_enabled: true
+      
+  staging:
+    app:
+      debug: false
+    database:
+      url: "postgresql://agent:password@staging-db/autonomous_agent"
+    redis:
+      url: "redis://staging-redis:6379"
+    development:
+      debug_mode: false
+      swagger_ui_enabled: true
+      
+  production:
+    app:
+      debug: false
+    security_headers:
+      strict_transport_security: "max-age=31536000; includeSubDomains; preload"
+    session:
+      secure: true
+    development:
+      debug_mode: false
+      swagger_ui_enabled: false

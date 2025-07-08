@@ -189,6 +189,125 @@ class MetricsCollector:
             description="Total rate limit hits",
             labels=["endpoint", "client_id"]
         ))
+        
+        # Authentication metrics
+        self.register_metric(MetricDefinition(
+            name="auth_requests_total",
+            type=MetricType.COUNTER,
+            description="Total authentication requests",
+            labels=["method", "success", "role"]
+        ))
+        
+        self.register_metric(MetricDefinition(
+            name="auth_successful_logins_total",
+            type=MetricType.COUNTER,
+            description="Total successful login attempts",
+            labels=["method", "role"]
+        ))
+        
+        self.register_metric(MetricDefinition(
+            name="auth_failed_logins_total",
+            type=MetricType.COUNTER,
+            description="Total failed login attempts",
+            labels=["method", "reason"]
+        ))
+        
+        self.register_metric(MetricDefinition(
+            name="auth_registrations_total",
+            type=MetricType.COUNTER,
+            description="Total user registrations"
+        ))
+        
+        self.register_metric(MetricDefinition(
+            name="auth_password_changes_total",
+            type=MetricType.COUNTER,
+            description="Total password changes"
+        ))
+        
+        self.register_metric(MetricDefinition(
+            name="auth_mfa_enabled_total",
+            type=MetricType.COUNTER,
+            description="Total MFA activations",
+            labels=["method"]
+        ))
+        
+        self.register_metric(MetricDefinition(
+            name="auth_oauth_logins_total",
+            type=MetricType.COUNTER,
+            description="Total OAuth login attempts",
+            labels=["provider", "success"]
+        ))
+        
+        self.register_metric(MetricDefinition(
+            name="security_events_total",
+            type=MetricType.COUNTER,
+            description="Total security events",
+            labels=["event_type", "severity"]
+        ))
+        
+        self.register_metric(MetricDefinition(
+            name="security_alerts_total",
+            type=MetricType.COUNTER,
+            description="Total security alerts",
+            labels=["severity", "threat_level"]
+        ))
+        
+        self.register_metric(MetricDefinition(
+            name="security_blocked_requests_total",
+            type=MetricType.COUNTER,
+            description="Total blocked requests",
+            labels=["reason"]
+        ))
+        
+        self.register_metric(MetricDefinition(
+            name="rate_limit_exceeded_total",
+            type=MetricType.COUNTER,
+            description="Total rate limit exceeded events",
+            labels=["identifier_type", "endpoint"]
+        ))
+        
+        self.register_metric(MetricDefinition(
+            name="rate_limit_requests_total",
+            type=MetricType.COUNTER,
+            description="Total rate limit checks",
+            labels=["identifier_type", "endpoint", "allowed"]
+        ))
+        
+        self.register_metric(MetricDefinition(
+            name="active_sessions_total",
+            type=MetricType.GAUGE,
+            description="Number of active user sessions"
+        ))
+        
+        self.register_metric(MetricDefinition(
+            name="users_total",
+            type=MetricType.GAUGE,
+            description="Total number of users"
+        ))
+        
+        self.register_metric(MetricDefinition(
+            name="users_active_total",
+            type=MetricType.GAUGE,
+            description="Number of active users"
+        ))
+        
+        self.register_metric(MetricDefinition(
+            name="user_profile_updates_total",
+            type=MetricType.COUNTER,
+            description="Total user profile updates"
+        ))
+        
+        self.register_metric(MetricDefinition(
+            name="user_preferences_updates_total",
+            type=MetricType.COUNTER,
+            description="Total user preferences updates"
+        ))
+        
+        self.register_metric(MetricDefinition(
+            name="user_deletions_total",
+            type=MetricType.COUNTER,
+            description="Total user deletions"
+        ))
     
     def register_metric(self, definition: MetricDefinition) -> None:
         """Register a new metric definition."""

@@ -3,6 +3,40 @@ pytest>=7.0.0
 pytest-asyncio>=0.21.0
 pytest-cov>=4.0.0
 
+# Web framework and API
+fastapi>=0.104.0
+uvicorn>=0.24.0
+pydantic>=2.0.0
+pydantic-settings>=2.0.0
+
+# Authentication and security
+PyJWT>=2.8.0
+passlib>=1.7.4
+bcrypt>=4.0.1
+python-multipart>=0.0.6
+
+# Multi-factor authentication
+pyotp>=2.9.0
+qrcode>=7.4.2
+Pillow>=10.0.0
+
+# Database
+sqlmodel>=0.0.8
+psycopg2-binary>=2.9.7
+asyncpg>=0.28.0
+
+# Redis
+redis>=5.0.0
+
+# Email validation
+email-validator>=2.0.0
+
+# HTTP client
+httpx>=0.25.0
+
+# Geolocation
+geoip2>=4.7.0
+
 # Configuration management
 PyYAML>=6.0.0
 
